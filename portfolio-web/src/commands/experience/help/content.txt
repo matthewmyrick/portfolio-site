@@ -1,0 +1,7 @@
+Available flags:
+    --help                   - Shows this help message.
+    --list                   - Lists all available comapnies.
+    --company "COMPANY_NAME" - Shows the detailed experience for that comapny.
+Example:
+    experience --list
+    experience --company "AB-InBev"

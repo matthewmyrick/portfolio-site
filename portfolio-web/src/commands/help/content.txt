@@ -1,0 +1,9 @@
+Available commands:
+    help         - Shows this help message.
+    about        - Displays information about me.
+    experience   - Lists my work experience.
+    skills       - Shows my technical skills.
+    projects     - Lists my recent projects.
+    contact      - Shows how to get in touch.
+    dance-battle - Challenges you to a dance-off.
+    clear        - Clears the terminal screen.

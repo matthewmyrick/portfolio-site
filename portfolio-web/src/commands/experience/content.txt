@@ -1,0 +1,26 @@
+Work:
+    <span class="text-cyan-400 font-bold">AB-InBev</span>
+        <span class="text-yellow-400">Senior Platform Engineer - SRE Lead</span>
+            Jan 2025 - Present
+        <span class="text-yellow-400">Senior Platforms Engineer</span>
+            Mar 2024 - Jan 2025 (11 mos)
+        <span class="text-yellow-400">Platforms Engineer</span>
+            Feb 2023 - Mar 2024 (1 yr 2 mos)
+    <span class="text-cyan-400 font-bold">Capgemini</span>
+        <span class="text-yellow-400">Software Developer</span>
+            Jan 2022 - Feb 2023 (1 yr 2 mos)
+    <span class="text-cyan-400 font-bold">Oracle</span>
+        <span class="text-yellow-400">Financial Analyst Intern</span>
+            Jun 2019 - Sep 2019 (4 mos)
+Education:
+    <span class="text-cyan-400 font-bold">Marquette University
+        Graduation Year: 2021
+        Majors:
+            - Information Systems
+            - Finance
+        Minor:
+            - Computer Science
+<br/>
+To learn more about each experience please run: 
+    experience --help
+    experience --company "COMPANY_NAME"

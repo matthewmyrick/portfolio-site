@@ -1,0 +1,4 @@
+Contact Me:
+    Send Email: <a href="mailto:MatthewMyrick2@gmail.com" class="text-cyan-400 underline">MatthewMyrick2@gmail.com</a>
+    LinkedIn: <a href="https://www.linkedin.com/in/mattmyrick/" target="_blank" rel="noopener noreferrer" class="text-cyan-400 underline">linkedin.com/in/mattmyrick</a>
+    GitHub: <a href="https://www.github.com/matthewmyrick" target="_blank" rel="noopener noreferrer" class="text-cyan-400 underline">github.com/matthewmyrick</a>

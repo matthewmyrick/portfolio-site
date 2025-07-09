@@ -1,0 +1,5 @@
+<span class="text-cyan-400 font-bold">Soft Skills</span>:
+    
+
+<br/>
+<span class="text-cyan-400 font-bold">Technical Skills</span>:

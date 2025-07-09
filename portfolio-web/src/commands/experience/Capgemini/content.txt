@@ -1,0 +1,7 @@
+<span class="text-cyan-400 font-bold">Capgemini</span>:
+<span class="text-yellow-400">Software Developer</span> | Jan 2022 - Feb 2023 (1 yr 2 mos)
+    - Refactored C# authentication and authorization service for internal financial and planning applcations
+    - Assisted in migration of CI/CD pipelines for 400+ applications from on-premise Ubuild/Udeploy to cloud instances with GitHub Actions
+    - Develop and maintain automated CI/CD pipelines for code builds/deployment using IBM Urban Code Build/Deploy & Github Actions for 400+ applications using Bash, PowerShell, Python, and Java
+    - Assisted and automated GitHub/TFS On-premise to cloud systems lift & shift totally 4,500 repositories, while maintaining
+      Git/TFS workflows using Bash, Powershell, and Python

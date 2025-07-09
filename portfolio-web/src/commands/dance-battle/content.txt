@@ -1,0 +1,2 @@
+You have been challenged to a dance battle!
+<img src="/dancer.gif" alt="dance battle gif" class="w-48 h-auto mt-2 rounded">

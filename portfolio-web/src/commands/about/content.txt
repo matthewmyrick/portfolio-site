@@ -1,0 +1,5 @@
+About Me:
+    I'm a full-stack developer who believes there's no place like 127.0.0.1. 🏠
+    When I'm not wrangling code, you can usually find me on the basketball court 🏀 or trying to catch a wave out at Rockaway Beach. 🏄‍♂️
+    I'm a big believer in building what you need, so I run my own server from my apartment using KubeSail.
+    Yep, this very portfolio is being served to you from my own little corner of the internet! 🖥️✨

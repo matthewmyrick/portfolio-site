@@ -1,0 +1,22 @@
+<span class="text-cyan-400 font-bold">AB-InBev</span>:
+<span class="text-yellow-400">Senior Platform Engineer - SRE Lead</span> | Jan 2025 - Present
+    - Managed, deployed, and supported Kubernetes instances, ensuring high availability, scalability, and security of containerized 
+      applications across multiple environments
+    - Helped architect and build a cross functional auth service that can scale across all of our services/applications
+    - Developed and maintained reusable libraries for Terraform, Golang, and Python 
+    - Developed a Golang API and CLI for engineers to better monitor our secrets
+<br/>
+<span class="text-yellow-400">Senior Platforms Engineer</span> | Mar 2024 - Jan 2025 (11 mos)
+    - Refactored the documentation website for centralized management with Docusaurus, Kubernetes, and SSO integration;
+      presented the new web app to engineers globally at a hackathon, achieving first place
+    - Developed and released a platforms API service for remote management of sensitive environment variables for our Swift iOS mobile application
+    - Managed and contributed to API services and scripts for authentication and authorization (AuthN/AuthZ) using Azure AAD and
+      B2C, supporting both external and internal users
+<br/>
+<span class="text-yellow-400">Platforms Engineer</span> | Feb 2023 - Mar 2024 (1 yr 2 mos)
+    - Led the initiative to migrate infrastructure for three services to Infrastructure as Code (IaC - Terraform) implementation leading
+      to higher security and better monitoring
+    - Implemented standards for best CI/CD practices across the organization
+    - Developed and implemented automation scripts for monitoring keys, github repos, reusable code, infrastructure automation, etc.
+    - Contributed to Level 2 (L2) and Level 3 (L3) support by facilitating bug triaging processes
+    
