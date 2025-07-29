@@ -1,0 +1,34 @@
+My Recent Projects:
+
+>€ Quill Task - Context-Aware Terminal Task Manager
+    A Rust-powered CLI that automatically organizes tasks by Git repository and branch.
+    Features interactive TUI, MongoDB/JSON storage, and real-time context switching.
+    Perfect for developers who want their task management to match their workflow.
+    ’ <a href="https://github.com/matthewmyrick/quill" target="_blank">github.com/matthewmyrick/quill</a>
+
+=¥ Portfolio Site - Interactive Terminal Portfolio
+    This very website! A SvelteKit-powered terminal emulator that serves as my portfolio.
+    Self-hosted from my apartment with full keyboard navigation and command processing.
+    Built with TypeScript, Svelte, and a healthy dose of terminal nostalgia.
+    ’ <a href="https://github.com/matthewmyrick/portfolio-site" target="_blank">github.com/matthewmyrick/portfolio-site</a>
+
+ Azure Searcher TUI - High-Performance Azure Explorer
+    A blazing-fast Go application for browsing Azure resources with parallel processing.
+    Features intelligent caching, concurrent data fetching, and beautiful TUI interface.
+    Makes managing Azure resources actually enjoyable from the terminal.
+    ’ <a href="https://github.com/matthewmyrick/azure-searcher" target="_blank">github.com/matthewmyrick/azure-searcher</a>
+
+=á Bluetooth TUI - macOS Bluetooth Manager
+    Terminal-based Bluetooth device management for macOS using Go and Bubble Tea.
+    Provides intuitive keyboard navigation for pairing, connecting, and managing devices.
+    Because clicking is overrated when you can type your way to connectivity.
+    ’ <a href="https://github.com/matthewmyrick/bluetooth-tui" target="_blank">github.com/matthewmyrick/bluetooth-tui</a>
+
+™ Dotfiles - Personal Development Environment
+    My carefully curated collection of configuration files for terminal productivity.
+    Includes configs for Helix, Neovim, Zellij, Yazi, and various shell environments.
+    One script to rule them all and set up a consistent dev environment anywhere.
+    ’ <a href="https://github.com/matthewmyrick/dotfiles" target="_blank">github.com/matthewmyrick/dotfiles</a>
+
+Each project reflects my passion for terminal-based tools and efficient developer workflows.
+Feel free to explore, fork, or contribute to any that catch your interest!

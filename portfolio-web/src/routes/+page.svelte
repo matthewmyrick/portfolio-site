@@ -1,6 +1,13 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { history, currentCommand, cursorPos, addToHistory, addCommandToHistory, gameState } from '../lib/stores/terminal.js';
+	import {
+		history,
+		currentCommand,
+		cursorPos,
+		addToHistory,
+		addCommandToHistory,
+		gameState
+	} from '../lib/stores/terminal.js';
 	import { loadCommands } from '../lib/utils/commandManager.js';
 	import { generateHighlightedCommand } from '../lib/utils/commandHighlighter.js';
 	import { processCommand } from '../lib/utils/commandProcessor.js';
@@ -14,11 +21,16 @@
 
 	const commands = loadCommands();
 	const welcomeMessage = [
-		'Welcome to my interactive portfolio hosted from my apartment 🏡!',
+		'Welcome to my interactive portfolio terminal website hosted from my apartment 🏡!',
 		'Type `help` to see available commands.'
 	];
 
-	$: highlightedCommandHtml = generateHighlightedCommand($currentCommand, commands, $cursorPos, $gameState.isActive);
+	$: highlightedCommandHtml = generateHighlightedCommand(
+		$currentCommand,
+		commands,
+		$cursorPos,
+		$gameState.isActive
+	);
 
 	async function scrollToBottom() {
 		await tick();
@@ -39,7 +51,7 @@
 				.replace('<span class="cursor-at-end"></span>', '');
 			addToHistory([`<span class="text-green-400">></span> ${historyHtml}`]);
 		}
-		
+
 		processCommand(trimmedInput, commands);
 		currentCommand.set('');
 		scrollToBottom();
@@ -76,7 +88,7 @@
 
 	<button
 		bind:this={terminalElement}
-		class="h-full w-full overflow-y-auto p-4 focus:outline-none bg-transparent border-none text-left cursor-text block align-top"
+		class="block h-full w-full cursor-text overflow-y-auto border-none bg-transparent p-4 text-left align-top focus:outline-none"
 		style="font-family: inherit; font-size: inherit; line-height: inherit; color: inherit; margin: 0; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; text-align: left;"
 		onclick={focusInput}
 		onkeydown={handleContainerKeyDown}
@@ -110,3 +122,4 @@
 		top: 0.2rem;
 	}
 </style>
+
