@@ -6,4 +6,5 @@ Available commands:
     projects     - Lists my recent projects.
     contact      - Shows how to get in touch.
     dance-battle - Challenges you to a dance-off.
+    game         - Starts a fun number guessing game.
     clear        - Clears the terminal screen.
