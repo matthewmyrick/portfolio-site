@@ -20,7 +20,7 @@ jobs:
       run: |
         # Get the latest tag, default to v0.0.0 if none exists
         LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-        echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+        echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
         echo "Latest tag: $LATEST_TAG"
         
     - name: Determine version bump
@@ -33,16 +33,21 @@ jobs:
         # Determine bump type based on commit message
         if [[ $COMMIT_MSG == *"major:"* ]]; then
           BUMP_TYPE="major"
+          echo "✅ Found 'major:' prefix - performing major version bump"
         elif [[ $COMMIT_MSG == *"minor:"* ]]; then
           BUMP_TYPE="minor"
+          echo "✅ Found 'minor:' prefix - performing minor version bump"
         elif [[ $COMMIT_MSG == *"patch:"* ]]; then
           BUMP_TYPE="patch"
+          echo "✅ Found 'patch:' prefix - performing patch version bump"
         else
-          BUMP_TYPE="patch"  # Default to patch
+          BUMP_TYPE="patch"
+          echo "ℹ️  No version prefix found (major:, minor:, patch:) - defaulting to patch bump"
+          echo "💡 Tip: Add 'major:', 'minor:', or 'patch:' to your commit message to control version bumping"
         fi
         
-        echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
-        echo "Bump type determined: $BUMP_TYPE"
+        echo "bump_type=$BUMP_TYPE" >> "$GITHUB_OUTPUT"
+        echo "🏷️  Version bump type: $BUMP_TYPE"
         
     - name: Calculate new version
       id: new_version
@@ -76,14 +81,8 @@ jobs:
         esac
         
         NEW_VERSION="v$MAJOR.$MINOR.$PATCH"
-        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
         echo "New version: $NEW_VERSION"
-        
-    - name: Configure Docker for insecure registry
-      run: |
-        # Configure Docker daemon for insecure registry
-        sudo mkdir -p /etc/docker
-        echo '{"insecure-registries":["harbor.registry.svc.cluster.local"]}' | sudo tee /etc/docker/daemon.json
         
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -95,11 +94,32 @@ jobs:
             http = true
             insecure = true
       
-    - name: Log in to Harbor Registry
+    - name: Create Docker config with Harbor credentials
       run: |
-        echo "${{ secrets.HARBOR_PASSWORD }}" | docker login harbor.registry.svc.cluster.local -u "${{ secrets.HARBOR_USERNAME }}" --password-stdin
+        # Create docker config directory
+        mkdir -p ~/.docker
+        
+        # Create auth token (base64 encoded username:password)
+        AUTH_TOKEN=$(echo -n "${{ secrets.HARBOR_USERNAME }}:${{ secrets.HARBOR_PASSWORD }}" | base64)
+        
+        # Create docker config with embedded credentials
+        cat > ~/.docker/config.json <<EOF
+        {
+          "auths": {
+            "harbor.registry.svc.cluster.local": {
+              "auth": "$AUTH_TOKEN"
+            }
+          },
+          "HttpHeaders": {
+            "User-Agent": "Docker-Client/19.03.0 (linux)"
+          }
+        }
+        EOF
+        
+        echo "Docker config created with Harbor credentials"
         
     - name: Build and push Docker image
+      id: build-push
       uses: docker/build-push-action@v5
       with:
         context: ./portfolio-web
@@ -113,6 +133,7 @@ jobs:
           org.opencontainers.image.revision=${{ github.sha }}
         
     - name: Create and push tag
+      id: create-tag
       run: |
         NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
         git config user.name "github-actions[bot]"
@@ -121,6 +142,7 @@ jobs:
         git push origin $NEW_VERSION
         
     - name: Create GitHub Release
+      id: create-release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -148,11 +170,78 @@ jobs:
         prerelease: false
         
     - name: Summary
+      if: always()
       run: |
-        echo "🚀 Build and Release Complete!"
-        echo "Version: ${{ steps.new_version.outputs.new_version }}"
-        echo "Bump Type: ${{ steps.version_bump.outputs.bump_type }}"
-        echo "Registry: harbor.registry.svc.cluster.local"
-        echo "Repository: frontend/portfolio-web"
-        echo "Tag: ${{ steps.new_version.outputs.new_version }}"
-        echo "📦 GitHub Release created"
+        # Determine workflow status
+        if [ "${{ job.status }}" = "success" ]; then
+          echo "## 🚀 Build and Release Complete!" >> $GITHUB_STEP_SUMMARY
+          STATUS_ICON="✅"
+          STATUS_TEXT="Completed Successfully"
+        elif [ "${{ job.status }}" = "failure" ]; then
+          echo "## ❌ Build and Release Failed" >> $GITHUB_STEP_SUMMARY
+          STATUS_ICON="❌"
+          STATUS_TEXT="Failed"
+        else
+          echo "## ⚠️ Build and Release Incomplete" >> $GITHUB_STEP_SUMMARY
+          STATUS_ICON="⚠️"
+          STATUS_TEXT="Incomplete"
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| **Status** | $STATUS_ICON $STATUS_TEXT |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Version** | \`${{ steps.new_version.outputs.new_version || 'Not calculated' }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Bump Type** | ${{ steps.version_bump.outputs.bump_type || 'Not determined' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Registry** | \`harbor.registry.svc.cluster.local\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Repository** | \`frontend/portfolio-web\` |" >> $GITHUB_STEP_SUMMARY
+        
+        # Only show Docker image info if version was calculated
+        if [ -n "${{ steps.new_version.outputs.new_version }}" ]; then
+          echo "| **Docker Image** | \`harbor.registry.svc.cluster.local/frontend/portfolio-web:${{ steps.new_version.outputs.new_version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **External Access** | \`192.168.1.168:30003/frontend/portfolio-web:${{ steps.new_version.outputs.new_version }}\` |" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "| **Docker Image** | Not built |" >> $GITHUB_STEP_SUMMARY
+          echo "| **External Access** | Not available |" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### $STATUS_ICON Status: $STATUS_TEXT" >> $GITHUB_STEP_SUMMARY
+        
+        # Show what was completed based on job status
+        if [ "${{ job.status }}" = "success" ]; then
+          echo "- ✅ Docker image built and pushed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Git tag created and pushed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GitHub Release created" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "**What happened:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Version calculation: ${{ steps.new_version.outcome == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker build: ${{ steps.build-push.outcome == 'success' && '✅ Success' || steps.build-push.outcome == 'failure' && '❌ Failed' || '⏭️ Skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Git tag: ${{ steps.create-tag.outcome == 'success' && '✅ Success' || steps.create-tag.outcome == 'failure' && '❌ Failed' || '⏭️ Skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- GitHub Release: ${{ steps.create-release.outcome == 'success' && '✅ Success' || steps.create-release.outcome == 'failure' && '❌ Failed' || '⏭️ Skipped' }}" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**💡 Next Steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Check the failed step logs above for details" >> $GITHUB_STEP_SUMMARY
+          echo "- Fix the issue and push another commit to retry" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📚 How to Control Version Bumping" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Add one of these prefixes to your commit message to control the version bump:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Prefix | Example | Version Change |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|---------|----------------|" >> $GITHUB_STEP_SUMMARY
+        echo "| \`major:\` | \`major: Breaking API changes\` | \`v1.0.0\` → \`v2.0.0\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| \`minor:\` | \`minor: Add new feature\` | \`v1.0.0\` → \`v1.1.0\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| \`patch:\` | \`patch: Fix bug in login\` | \`v1.0.0\` → \`v1.0.1\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| _(none)_ | \`Update documentation\` | \`v1.0.0\` → \`v1.0.1\` (default) |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Examples:**" >> $GITHUB_STEP_SUMMARY
+        echo "- \`major: Redesign user authentication system\`" >> $GITHUB_STEP_SUMMARY
+        echo "- \`minor: Add dark mode toggle\`" >> $GITHUB_STEP_SUMMARY
+        echo "- \`patch: Fix responsive layout on mobile\`" >> $GITHUB_STEP_SUMMARY
+        echo "- \`Update README\` _(will default to patch bump)_" >> $GITHUB_STEP_SUMMARY
