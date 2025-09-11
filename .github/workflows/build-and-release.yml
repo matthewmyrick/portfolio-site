@@ -85,9 +85,16 @@ jobs:
         driver: kubernetes
         driver-opts: namespace=github-runners,nodeselector=kubernetes.io/os=linux
         buildkitd-config-inline: |
-          [registry."harbor-oci-registry-registry.registry.svc.cluster.local:5000"]
+          [registry."harbor.registry.svc.cluster.local"]
             http = true
             insecure = true
+      
+    - name: Log in to Harbor Registry
+      uses: docker/login-action@v3
+      with:
+        registry: harbor.registry.svc.cluster.local
+        username: ${{ secrets.HARBOR_USERNAME }}
+        password: ${{ secrets.HARBOR_PASSWORD }}
         
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
@@ -96,7 +103,7 @@ jobs:
         file: ./portfolio-web/Dockerfile
         push: true
         tags: |
-          harbor-oci-registry-registry.registry.svc.cluster.local:5000/frontend/portfolio-web:${{ steps.new_version.outputs.new_version }}
+          harbor.registry.svc.cluster.local/frontend/portfolio-web:${{ steps.new_version.outputs.new_version }}
         labels: |
           org.opencontainers.image.version=${{ steps.new_version.outputs.new_version }}
           org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -125,7 +132,7 @@ jobs:
           - Docker image built and pushed to Harbor Registry
           
           ## Docker Image
-          - Image: `harbor-oci-registry-registry.registry.svc.cluster.local:5000/frontend/portfolio-web:${{ steps.new_version.outputs.new_version }}`
+          - Image: `harbor.registry.svc.cluster.local/frontend/portfolio-web:${{ steps.new_version.outputs.new_version }}`
           
           ## External Access
           - NodePort: `192.168.1.168:30003/frontend/portfolio-web:${{ steps.new_version.outputs.new_version }}`
@@ -142,7 +149,7 @@ jobs:
         echo "🚀 Build and Release Complete!"
         echo "Version: ${{ steps.new_version.outputs.new_version }}"
         echo "Bump Type: ${{ steps.version_bump.outputs.bump_type }}"
-        echo "Registry: harbor-oci-registry-registry.registry.svc.cluster.local:5000"
+        echo "Registry: harbor.registry.svc.cluster.local"
         echo "Repository: frontend/portfolio-web"
         echo "Tag: ${{ steps.new_version.outputs.new_version }}"
         echo "📦 GitHub Release created"
