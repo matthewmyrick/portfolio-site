@@ -79,6 +79,12 @@ jobs:
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "New version: $NEW_VERSION"
         
+    - name: Configure Docker for insecure registry
+      run: |
+        # Configure Docker daemon for insecure registry
+        sudo mkdir -p /etc/docker
+        echo '{"insecure-registries":["harbor.registry.svc.cluster.local"]}' | sudo tee /etc/docker/daemon.json
+        
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
       with:
@@ -90,11 +96,8 @@ jobs:
             insecure = true
       
     - name: Log in to Harbor Registry
-      uses: docker/login-action@v3
-      with:
-        registry: harbor.registry.svc.cluster.local
-        username: ${{ secrets.HARBOR_USERNAME }}
-        password: ${{ secrets.HARBOR_PASSWORD }}
+      run: |
+        echo "${{ secrets.HARBOR_PASSWORD }}" | docker login harbor.registry.svc.cluster.local -u "${{ secrets.HARBOR_USERNAME }}" --password-stdin
         
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
