@@ -88,9 +88,16 @@ jobs:
       uses: docker/setup-buildx-action@v3
       with:
         driver: kubernetes
-        driver-opts: namespace=github-runners,nodeselector=kubernetes.io/os=linux
+        driver-opts: |
+          namespace=github-runners
+          nodeselector=kubernetes.io/os=linux
+          "rootless=false"
+          "network=host"
         buildkitd-config-inline: |
           [registry."harbor.registry.svc.cluster.local"]
+            http = true
+            insecure = true
+          [registry."apollo.local:30003"]
             http = true
             insecure = true
       
