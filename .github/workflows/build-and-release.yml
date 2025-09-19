@@ -79,12 +79,16 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Start Docker and build image
+      - name: Install dependencies and start Docker
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
 
-          # Start Docker daemon in background
-          sudo dockerd --host=unix:///var/run/docker.sock --insecure-registry=192.168.1.168:30003 &
+          # Install missing dependencies
+          sudo apt-get update
+          sudo apt-get install -y iptables
+
+          # Start Docker daemon with minimal networking
+          sudo dockerd --host=unix:///var/run/docker.sock --insecure-registry=192.168.1.168:30003 --iptables=false --bridge=none &
 
           # Wait for Docker to start
           echo "Waiting for Docker daemon to start..."
