@@ -79,7 +79,7 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Install podman and build image
+      - name: Setup podman and build image
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
 
@@ -87,16 +87,41 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y podman
 
+          # Configure podman for rootless mode
+          echo "Configuring podman..."
+          mkdir -p ~/.config/containers
+
+          # Create registries.conf to allow insecure registry
+          cat > ~/.config/containers/registries.conf << EOF
+          [[registry]]
+          location = "192.168.1.168:30003"
+          insecure = true
+          EOF
+
+          # Test podman installation
+          podman version
+
           # Login to Harbor registry
+          echo "Logging into Harbor..."
           echo "Harbor12345" | podman login --username admin --password-stdin --tls-verify=false 192.168.1.168:30003
 
+          # Check if Dockerfile exists
+          ls -la ./portfolio-web/
+
           # Build and push the image
+          echo "Building image..."
           cd ./portfolio-web
           podman build -t temp-image .
+
+          echo "Tagging images..."
           podman tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
           podman tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:latest
+
+          echo "Pushing images..."
           podman push --tls-verify=false 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
           podman push --tls-verify=false 192.168.1.168:30003/portfolio/portfolio-web:latest
+
+          echo "Build and push completed successfully!"
 
       - name: Create and push tag
         run: |
