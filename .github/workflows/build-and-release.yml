@@ -8,6 +8,17 @@ on:
 jobs:
   build-and-release:
     runs-on: portfolio-runners
+    services:
+      docker:
+        image: docker:dind
+        options: --privileged
+        ports:
+          - 2375:2375
+        env:
+          DOCKER_TLS_CERTDIR: ""
+    env:
+      DOCKER_HOST: tcp://docker:2375
+      DOCKER_DRIVER: overlay2
 
     steps:
       - name: Checkout code
