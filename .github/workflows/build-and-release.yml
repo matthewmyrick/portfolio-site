@@ -79,41 +79,24 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Install dependencies and start Docker
+      - name: Install podman and build image
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
 
-          # Install missing dependencies
+          # Install podman (daemonless container tool)
           sudo apt-get update
-          sudo apt-get install -y iptables
-
-          # Start Docker daemon with minimal networking
-          sudo dockerd --host=unix:///var/run/docker.sock --insecure-registry=192.168.1.168:30003 --iptables=false --bridge=none &
-
-          # Wait for Docker to start
-          echo "Waiting for Docker daemon to start..."
-          for i in {1..30}; do
-            if docker info >/dev/null 2>&1; then
-              echo "Docker daemon started successfully"
-              break
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
-
-          # Verify Docker is working
-          docker info
+          sudo apt-get install -y podman
 
           # Login to Harbor registry
-          echo "Harbor12345" | docker login --username admin --password-stdin 192.168.1.168:30003
+          echo "Harbor12345" | podman login --username admin --password-stdin --tls-verify=false 192.168.1.168:30003
 
           # Build and push the image
           cd ./portfolio-web
-          docker build -t temp-image .
-          docker tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
-          docker tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:latest
-          docker push 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
-          docker push 192.168.1.168:30003/portfolio/portfolio-web:latest
+          podman build -t temp-image .
+          podman tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
+          podman tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:latest
+          podman push --tls-verify=false 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
+          podman push --tls-verify=false 192.168.1.168:30003/portfolio/portfolio-web:latest
 
       - name: Create and push tag
         run: |
