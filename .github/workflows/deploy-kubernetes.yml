@@ -6,42 +6,44 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to deploy'
+        description: "Version to deploy"
         required: true
         type: string
 
 jobs:
   deploy:
-    runs-on: apollo-runners
-    
+    # runs-on: portfolio-runners
+    runs-on: ubuntu-latest
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Get version
-      id: get_version
-      run: |
-        if [ "${{ github.event_name }}" = "release" ]; then
-          VERSION="${{ github.event.release.tag_name }}"
-        else
-          VERSION="${{ inputs.version }}"
-        fi
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Deploying version: $VERSION"
-        
-    - name: Update Kubernetes manifests
-      run: |
-        echo "TODO: Update Kubernetes YAML files with new image tag: ${{ steps.get_version.outputs.version }}"
-        echo "TODO: This will update deployment files with new image: 192.168.1.168:30003/portfolio/portfolio-web:${{ steps.get_version.outputs.version }}"
-        
-    - name: Trigger ArgoCD Sync
-      run: |
-        echo "TODO: Trigger ArgoCD application sync"
-        echo "TODO: This will use argocd CLI or API to sync the portfolio application"
-        
-    - name: Deployment Summary
-      run: |
-        echo "🚀 Kubernetes Deployment Complete!"
-        echo "Version: ${{ steps.get_version.outputs.version }}"
-        echo "Image: 192.168.1.168:30003/portfolio/portfolio-web:${{ steps.get_version.outputs.version }}"
-        echo "TODO: Add actual deployment verification steps"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Deploying version: $VERSION"
+
+      - name: Update Kubernetes manifests
+        run: |
+          echo "TODO: Update Kubernetes YAML files with new image tag: ${{ steps.get_version.outputs.version }}"
+          echo "TODO: This will update deployment files with new image: 192.168.1.168:30003/portfolio/portfolio-web:${{ steps.get_version.outputs.version }}"
+
+      - name: Trigger ArgoCD Sync
+        run: |
+          echo "TODO: Trigger ArgoCD application sync"
+          echo "TODO: This will use argocd CLI or API to sync the portfolio application"
+
+      - name: Deployment Summary
+        run: |
+          echo "🚀 Kubernetes Deployment Complete!"
+          echo "Version: ${{ steps.get_version.outputs.version }}"
+          echo "Image: 192.168.1.168:30003/portfolio/portfolio-web:${{ steps.get_version.outputs.version }}"
+          echo "TODO: Add actual deployment verification steps"
+
