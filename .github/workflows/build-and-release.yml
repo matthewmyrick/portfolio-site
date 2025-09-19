@@ -79,20 +79,25 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Create Docker config for Harbor
+      - name: Build and push with Kaniko
         run: |
+          NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
+
+          # Create auth config
           mkdir -p /kaniko/.docker
           echo '{"auths":{"192.168.1.168:30003":{"username":"admin","password":"Harbor12345"}}}' > /kaniko/.docker/config.json
 
-      - name: Build and push with Kaniko
-        uses: docker://gcr.io/kaniko-project/executor:v1.20.0-debug
-        with:
-          args: >-
-            --context=./portfolio-web
-            --dockerfile=./portfolio-web/Dockerfile
-            --destination=192.168.1.168:30003/portfolio/portfolio-web:${{ steps.new_version.outputs.new_version }}
-            --destination=192.168.1.168:30003/portfolio/portfolio-web:latest
-            --insecure
+          # Download and extract Kaniko
+          wget -O /tmp/kaniko.tar.gz https://github.com/GoogleContainerTools/kaniko/releases/download/v1.20.0/kaniko-amd64.tar.gz
+          tar -xzf /tmp/kaniko.tar.gz -C /tmp/
+
+          # Run Kaniko build
+          /tmp/kaniko/executor \
+            --context=./portfolio-web \
+            --dockerfile=./portfolio-web/Dockerfile \
+            --destination=192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION \
+            --destination=192.168.1.168:30003/portfolio/portfolio-web:latest \
+            --insecure \
             --skip-tls-verify
 
       - name: Create and push tag
