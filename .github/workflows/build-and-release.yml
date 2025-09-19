@@ -79,38 +79,37 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Check available tools and build with Buildah
+      - name: Start Docker and build image
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
 
-          # Check what container tools are available
-          echo "=== Available tools ==="
-          command -v docker && echo "Docker available" || echo "Docker not available"
-          command -v buildah && echo "Buildah available" || echo "Buildah not available"
-          command -v podman && echo "Podman available" || echo "Podman not available"
-          command -v skopeo && echo "Skopeo available" || echo "Skopeo not available"
+          # Start Docker daemon in background
+          sudo dockerd --host=unix:///var/run/docker.sock --insecure-registry=192.168.1.168:30003 &
 
-          # Check if we can install buildah
-          if ! command -v buildah >/dev/null 2>&1; then
-            echo "Installing buildah..."
-            sudo apt-get update && sudo apt-get install -y buildah
-          fi
+          # Wait for Docker to start
+          echo "Waiting for Docker daemon to start..."
+          for i in {1..30}; do
+            if docker info >/dev/null 2>&1; then
+              echo "Docker daemon started successfully"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
 
-          # Build and push with buildah
+          # Verify Docker is working
+          docker info
+
+          # Login to Harbor registry
+          echo "Harbor12345" | docker login --username admin --password-stdin 192.168.1.168:30003
+
+          # Build and push the image
           cd ./portfolio-web
-
-          # Build the image
-          buildah build --format oci --tag temp-image .
-
-          # Login to Harbor (insecure)
-          echo "Harbor12345" | buildah login --username admin --password-stdin --tls-verify=false 192.168.1.168:30003
-
-          # Tag and push
-          buildah tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
-          buildah tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:latest
-
-          buildah push --tls-verify=false 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
-          buildah push --tls-verify=false 192.168.1.168:30003/portfolio/portfolio-web:latest
+          docker build -t temp-image .
+          docker tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
+          docker tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:latest
+          docker push 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
+          docker push 192.168.1.168:30003/portfolio/portfolio-web:latest
 
       - name: Create and push tag
         run: |
