@@ -8,17 +8,8 @@ on:
 jobs:
   build-and-release:
     runs-on: portfolio-runners
-    services:
-      docker:
-        image: docker:dind
-        options: --privileged
-        ports:
-          - 2375:2375
-        env:
-          DOCKER_TLS_CERTDIR: ""
-    env:
-      DOCKER_HOST: tcp://docker:2375
-      DOCKER_DRIVER: overlay2
+    container:
+      image: gcr.io/kaniko-project/executor:debug
 
     steps:
       - name: Checkout code
@@ -90,35 +81,22 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Build and push with Kaniko
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
 
-      - name: Log in to Harbor Registry
-        uses: docker/login-action@v3
-        with:
-          registry: 192.168.1.168:30003
-          username: "admin"
-          password: "Harbor12345"
+          # Create auth config for Harbor
+          mkdir -p /kaniko/.docker
+          echo '{"auths":{"192.168.1.168:30003":{"username":"admin","password":"Harbor12345"}}}' > /kaniko/.docker/config.json
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: 192.168.1.168:30003/portfolio/portfolio-web
-          tags: |
-            type=raw,value=${{ steps.new_version.outputs.new_version }}
-            type=raw,value=latest
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./portfolio-web
-          file: ./portfolio-web/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Build and push with Kaniko
+          /kaniko/executor \
+            --context ./portfolio-web \
+            --dockerfile ./portfolio-web/Dockerfile \
+            --destination 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION \
+            --destination 192.168.1.168:30003/portfolio/portfolio-web:latest \
+            --insecure \
+            --skip-tls-verify
 
       - name: Create and push tag
         run: |
