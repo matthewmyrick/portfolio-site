@@ -83,15 +83,15 @@ jobs:
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
 
-          # Create auth config
-          mkdir -p /kaniko/.docker
-          echo '{"auths":{"192.168.1.168:30003":{"username":"admin","password":"Harbor12345"}}}' > /kaniko/.docker/config.json
+          # Create auth config in home directory
+          mkdir -p $HOME/.docker
+          echo '{"auths":{"192.168.1.168:30003":{"username":"admin","password":"Harbor12345"}}}' > $HOME/.docker/config.json
 
           # Download and extract Kaniko
           wget -O /tmp/kaniko.tar.gz https://github.com/GoogleContainerTools/kaniko/releases/download/v1.20.0/kaniko-amd64.tar.gz
           tar -xzf /tmp/kaniko.tar.gz -C /tmp/
 
-          # Run Kaniko build
+          # Run Kaniko build with custom config location
           /tmp/kaniko/executor \
             --context=./portfolio-web \
             --dockerfile=./portfolio-web/Dockerfile \
@@ -99,6 +99,8 @@ jobs:
             --destination=192.168.1.168:30003/portfolio/portfolio-web:latest \
             --insecure \
             --skip-tls-verify
+        env:
+          DOCKER_CONFIG: $HOME/.docker
 
       - name: Create and push tag
         run: |
