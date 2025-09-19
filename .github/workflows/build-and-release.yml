@@ -8,8 +8,6 @@ on:
 jobs:
   build-and-release:
     runs-on: portfolio-runners
-    container:
-      image: gcr.io/kaniko-project/executor:debug
 
     steps:
       - name: Checkout code
@@ -81,21 +79,20 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Build and push with Kaniko
+      - name: Create Docker config for Harbor
         run: |
-          NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
-
-          # Create auth config for Harbor
           mkdir -p /kaniko/.docker
           echo '{"auths":{"192.168.1.168:30003":{"username":"admin","password":"Harbor12345"}}}' > /kaniko/.docker/config.json
 
-          # Build and push with Kaniko
-          /kaniko/executor \
-            --context ./portfolio-web \
-            --dockerfile ./portfolio-web/Dockerfile \
-            --destination 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION \
-            --destination 192.168.1.168:30003/portfolio/portfolio-web:latest \
-            --insecure \
+      - name: Build and push with Kaniko
+        uses: docker://gcr.io/kaniko-project/executor:v1.20.0-debug
+        with:
+          args: >-
+            --context=./portfolio-web
+            --dockerfile=./portfolio-web/Dockerfile
+            --destination=192.168.1.168:30003/portfolio/portfolio-web:${{ steps.new_version.outputs.new_version }}
+            --destination=192.168.1.168:30003/portfolio/portfolio-web:latest
+            --insecure
             --skip-tls-verify
 
       - name: Create and push tag
