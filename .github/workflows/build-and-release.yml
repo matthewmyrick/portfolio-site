@@ -7,8 +7,7 @@ on:
 
 jobs:
   build-and-release:
-    # runs-on: portfolio-runners
-    runs-on: ubuntu-latest
+    runs-on: portfolio-runners
 
     steps:
       - name: Checkout code
