@@ -79,28 +79,38 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Build and push with Kaniko
+      - name: Check available tools and build with Buildah
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
 
-          # Create auth config in home directory
-          mkdir -p $HOME/.docker
-          echo '{"auths":{"192.168.1.168:30003":{"username":"admin","password":"Harbor12345"}}}' > $HOME/.docker/config.json
+          # Check what container tools are available
+          echo "=== Available tools ==="
+          command -v docker && echo "Docker available" || echo "Docker not available"
+          command -v buildah && echo "Buildah available" || echo "Buildah not available"
+          command -v podman && echo "Podman available" || echo "Podman not available"
+          command -v skopeo && echo "Skopeo available" || echo "Skopeo not available"
 
-          # Download and extract Kaniko
-          curl -L -o /tmp/kaniko.tar.gz https://github.com/GoogleContainerTools/kaniko/releases/download/v1.20.0/kaniko-amd64.tar.gz
-          tar -xzf /tmp/kaniko.tar.gz -C /tmp/
+          # Check if we can install buildah
+          if ! command -v buildah >/dev/null 2>&1; then
+            echo "Installing buildah..."
+            sudo apt-get update && sudo apt-get install -y buildah
+          fi
 
-          # Run Kaniko build with custom config location
-          /tmp/kaniko/executor \
-            --context=./portfolio-web \
-            --dockerfile=./portfolio-web/Dockerfile \
-            --destination=192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION \
-            --destination=192.168.1.168:30003/portfolio/portfolio-web:latest \
-            --insecure \
-            --skip-tls-verify
-        env:
-          DOCKER_CONFIG: $HOME/.docker
+          # Build and push with buildah
+          cd ./portfolio-web
+
+          # Build the image
+          buildah build --format oci --tag temp-image .
+
+          # Login to Harbor (insecure)
+          echo "Harbor12345" | buildah login --username admin --password-stdin --tls-verify=false 192.168.1.168:30003
+
+          # Tag and push
+          buildah tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
+          buildah tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:latest
+
+          buildah push --tls-verify=false 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
+          buildah push --tls-verify=false 192.168.1.168:30003/portfolio/portfolio-web:latest
 
       - name: Create and push tag
         run: |
