@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: matthews-macbook-air-matthewmyrick-portfolio-site
+    runs-on: [self-hosted, matthews-macbook-air-matthewmyrick]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
