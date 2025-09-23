@@ -7,11 +7,7 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: portfolio-runners
-    container:
-      image: quay.io/podman/stable:latest
-      options: --privileged
-
+    runs-on: matthews-macbook-air-matthewmyrick-portfolio-site
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -82,31 +78,24 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Build and push with podman
+      - name: Build and push with buildah
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
 
-          # Configure podman for insecure registry
-          mkdir -p ~/.config/containers
-          cat > ~/.config/containers/registries.conf << EOF
-          [[registry]]
-          location = "192.168.1.168:30003"
-          insecure = true
-          EOF
+          # Install only buildah (faster than full podman)
+          sudo apt-get update -qq
+          sudo apt-get install -y buildah skopeo
 
-          # Test podman installation
-          podman version
+          # Build the image
+          cd ./portfolio-web
+          buildah build --format oci --tag temp-image .
 
           # Login to Harbor registry
-          echo "Harbor12345" | podman login --username admin --password-stdin --tls-verify=false 192.168.1.168:30003
+          echo "Harbor12345" | buildah login --username admin --password-stdin --tls-verify=false 192.168.1.168:30003
 
-          # Build and push the image
-          cd ./portfolio-web
-          podman build -t temp-image .
-          podman tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
-          podman tag temp-image 192.168.1.168:30003/portfolio/portfolio-web:latest
-          podman push --tls-verify=false 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
-          podman push --tls-verify=false 192.168.1.168:30003/portfolio/portfolio-web:latest
+          # Tag and push using skopeo (better for pushing)
+          skopeo copy --dest-tls-verify=false containers-storage:temp-image docker://192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
+          skopeo copy --dest-tls-verify=false containers-storage:temp-image docker://192.168.1.168:30003/portfolio/portfolio-web:latest
 
       - name: Create and push tag
         run: |

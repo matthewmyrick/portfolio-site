@@ -12,9 +12,7 @@ on:
 
 jobs:
   deploy:
-    # runs-on: portfolio-runners
-    runs-on: ubuntu-latest
-
+    runs-on: matthews-macbook-air-matthewmyrick-portfolio-site
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,4 +44,3 @@ jobs:
           echo "Version: ${{ steps.get_version.outputs.version }}"
           echo "Image: 192.168.1.168:30003/portfolio/portfolio-web:${{ steps.get_version.outputs.version }}"
           echo "TODO: Add actual deployment verification steps"
-
