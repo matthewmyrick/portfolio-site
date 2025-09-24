@@ -82,6 +82,10 @@ jobs:
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
 
+          # Remove Docker credential store to avoid keychain issues in CI
+          mv ~/.docker/config.json ~/.docker/config.json.backup || true
+          echo '{"auths":{}}' > ~/.docker/config.json
+
           # Build the image
           cd ./portfolio-web
           docker build -t portfolio-web:temp .
@@ -95,6 +99,9 @@ jobs:
 
           docker push 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
           docker push 192.168.1.168:30003/portfolio/portfolio-web:latest
+
+          # Restore Docker config
+          mv ~/.docker/config.json.backup ~/.docker/config.json || true
 
       - name: Create and push tag
         run: |
