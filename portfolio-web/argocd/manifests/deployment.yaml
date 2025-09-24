@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: portfolio-web
-        image: harbor.registry.svc.cluster.local/frontend/portfolio-web:latest
+        image: harbor-oci-registry-registry.registry.svc.cluster.local:5000/frontend/portfolio-web:latest
         ports:
         - containerPort: 80
         resources:
