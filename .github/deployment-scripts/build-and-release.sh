@@ -93,8 +93,8 @@ if [ ! -d "./portfolio-web" ]; then
 fi
 
 cd ./portfolio-web
-echo "Building image with tag: temp-image"
-docker build -t temp-image .
+echo "Building image with tag: temp-image (targeting linux/amd64 for K3s compatibility)"
+docker build --platform linux/amd64 -t temp-image .
 cd ..
 print_notice "Docker image built successfully"
 print_end_group

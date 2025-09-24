@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: portfolio-web
-        image: harbor-oci-registry-registry.registry.svc.cluster.local:5000/frontend/portfolio-web:latest
+        image: 192.168.1.168:30003/frontend/portfolio-web:latest
         ports:
         - containerPort: 80
         resources:
@@ -39,3 +39,5 @@ spec:
             port: 80
           initialDelaySeconds: 5
           periodSeconds: 5
+      imagePullSecrets:
+      - name: harbor-registry-secret
