@@ -78,24 +78,23 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Build and push with buildah
+      - name: Build and push with Docker
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
 
-          # Install only buildah (faster than full podman)
-          sudo apt-get update -qq
-          sudo apt-get install -y buildah skopeo
-
           # Build the image
           cd ./portfolio-web
-          buildah build --format oci --tag temp-image .
+          docker build -t portfolio-web:temp .
 
           # Login to Harbor registry
-          echo "Harbor12345" | buildah login --username admin --password-stdin --tls-verify=false 192.168.1.168:30003
+          echo "Harbor12345" | docker login 192.168.1.168:30003 --username admin --password-stdin
 
-          # Tag and push using skopeo (better for pushing)
-          skopeo copy --dest-tls-verify=false containers-storage:temp-image docker://192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
-          skopeo copy --dest-tls-verify=false containers-storage:temp-image docker://192.168.1.168:30003/portfolio/portfolio-web:latest
+          # Tag and push the images
+          docker tag portfolio-web:temp 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
+          docker tag portfolio-web:temp 192.168.1.168:30003/portfolio/portfolio-web:latest
+
+          docker push 192.168.1.168:30003/portfolio/portfolio-web:$NEW_VERSION
+          docker push 192.168.1.168:30003/portfolio/portfolio-web:latest
 
       - name: Create and push tag
         run: |
