@@ -68,10 +68,12 @@ export function complete(input: string, cwd: string): CompleteResult {
 // Completes the command (incl. after a pipe) or the last path token.
 export function suggest(input: string, cwd: string): string | null {
   if (!input) return null;
-  // Work on the segment after the last pipe, preserving the prefix.
-  const pipeIdx = input.lastIndexOf('|');
-  const prefix = pipeIdx === -1 ? '' : input.slice(0, pipeIdx + 1);
-  const segRaw = pipeIdx === -1 ? input : input.slice(pipeIdx + 1);
+  // Work on the segment after the last pipe/chain operator, keeping the prefix.
+  const ops = [...input.matchAll(/\|\||&&|;|\|/g)];
+  const lastOp = ops.length ? ops[ops.length - 1] : null;
+  const cut = lastOp ? (lastOp.index ?? 0) + lastOp[0].length : 0;
+  const prefix = input.slice(0, cut);
+  const segRaw = input.slice(cut);
   const lead = segRaw.slice(0, segRaw.length - segRaw.replace(/^\s+/, '').length);
   const seg = segRaw.slice(lead.length);
   if (seg === '' || /\s$/.test(seg)) return null;

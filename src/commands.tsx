@@ -16,6 +16,7 @@ import { TERMINALS, isTermType } from './lib/terminals';
 import { RickRoll } from './components/RickRoll';
 import { openVim } from './components/Vim';
 import { openLess } from './components/Less';
+import { shell } from './lib/shell';
 
 export interface Ctx {
   args: string[]; // positional args (quotes stripped)
@@ -42,7 +43,10 @@ const APP_START = Date.now();
 const S = () => useStore.getState();
 const print = (node: ReactNode) => S().print(node);
 const printText = (s: string) => print(renderText(s));
-const printErr = (s: string) => print(<span className="t-red whitespace-pre-wrap">{s}</span>);
+const printErr = (s: string) => {
+  shell.lastExit ||= 1; // an error line means the command failed
+  print(<span className="t-red whitespace-pre-wrap">{s}</span>);
+};
 
 function catFile(rel: string): void {
   const abs = resolvePath(HOME, rel);

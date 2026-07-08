@@ -4,12 +4,16 @@ import { COMMANDS } from './commands';
 import { CommandEcho } from './components/Prompt';
 import { getNode, resolvePath, HOME } from './lib/fsops';
 import { openLess } from './components/Less';
+import { shell } from './lib/shell';
 
 const NO_GAME: GameState = { active: false, target: 0, attempts: 0, max: 7 };
 
 const S = () => useStore.getState();
 const print = (node: ReactNode) => S().print(node);
-const printErr = (s: string) => print(<span className="t-red whitespace-pre-wrap">{s}</span>);
+const printErr = (s: string) => {
+  shell.lastExit ||= 1; // an error line means the command failed
+  print(<span className="t-red whitespace-pre-wrap">{s}</span>);
+};
 
 interface Parsed {
   command: string;
@@ -36,6 +40,74 @@ function parse(raw: string): Parsed {
   const sp = trimmed.indexOf(' ');
   const rest = sp === -1 ? '' : trimmed.slice(sp + 1);
   return { command, args, flags, rest };
+}
+
+// Split a line into units separated by `&&`, `||`, and `;` (quote-aware).
+// Each unit remembers the operator that connects it to the PREVIOUS unit.
+interface ChainUnit {
+  op: '&&' | '||' | ';' | null;
+  cmd: string;
+}
+
+function splitChain(s: string): ChainUnit[] {
+  const out: ChainUnit[] = [];
+  let cur = '';
+  let quote = '';
+  let op: ChainUnit['op'] = null;
+  const pushCur = (nextOp: ChainUnit['op']) => {
+    if (cur.trim()) out.push({ op, cmd: cur.trim() });
+    cur = '';
+    op = nextOp;
+  };
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (quote) {
+      cur += ch;
+      if (ch === quote) quote = '';
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+      cur += ch;
+    } else if (ch === '&' && s[i + 1] === '&') {
+      pushCur('&&');
+      i++;
+    } else if (ch === '|' && s[i + 1] === '|') {
+      pushCur('||');
+      i++;
+    } else if (ch === ';') {
+      pushCur(';');
+    } else {
+      cur += ch;
+    }
+  }
+  pushCur(null);
+  return out;
+}
+
+// Expand `$?` (last exit status). Like bash: expands bare and inside double
+// quotes, but never inside single quotes.
+function expandStatus(s: string): string {
+  let out = '';
+  let inSingle = false;
+  let inDouble = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inSingle) {
+      out += ch;
+      if (ch === "'") inSingle = false;
+    } else if (ch === "'" && !inDouble) {
+      inSingle = true;
+      out += ch;
+    } else if (ch === '"') {
+      inDouble = !inDouble;
+      out += ch;
+    } else if (ch === '$' && s[i + 1] === '?') {
+      out += String(shell.lastExit);
+      i++;
+    } else {
+      out += ch;
+    }
+  }
+  return out;
 }
 
 // Split a line on top-level `|` (ignoring pipes inside quotes).
@@ -189,7 +261,26 @@ export function runCommand(raw: string): void {
     return;
   }
 
-  const segments = splitPipes(trimmed);
+  // `a && b || c ; d` — run units left to right with real shell semantics:
+  // && runs on success, || on failure, ; always. `$?` expands per unit.
+  const units = splitChain(trimmed);
+  if (units.length > 1) {
+    // fzf is async (it opens an overlay), so it can't take part in a chain.
+    const hasFzf = units.some((u) => parse(splitPipes(u.cmd)[0] ?? '').command === 'fzf');
+    if (hasFzf) return printErr('fzf: cannot be combined with && / || / ;');
+  }
+  for (const u of units) {
+    if (u.op === '&&' && shell.lastExit !== 0) continue;
+    if (u.op === '||' && shell.lastExit === 0) continue;
+    runUnit(expandStatus(u.cmd));
+  }
+}
+
+// Run one pipeline / simple command and record its exit status in shell.lastExit.
+function runUnit(unit: string): void {
+  const segments = splitPipes(unit);
+  if (!segments.length) return;
+  shell.lastExit = 0;
 
   // fzf as a pipeline source (or standalone) — open the finder.
   if (parse(segments[0]).command === 'fzf') {
@@ -203,10 +294,11 @@ export function runCommand(raw: string): void {
     return;
   }
 
-  const { command, args, flags, rest } = parse(raw);
+  const { command, args, flags, rest } = parse(unit);
   const cmd = COMMANDS[command];
   if (!cmd) {
     printErr(`command not found: ${command} — type 'help'`);
+    shell.lastExit = 127;
     return;
   }
   cmd.run({ args, flags, rest });

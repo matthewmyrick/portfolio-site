@@ -5,6 +5,7 @@ import { complete, suggest } from '../lib/complete';
 import { highlightClasses } from '../lib/highlight';
 import { Prompt, CommandEcho } from './Prompt';
 import { COMMAND_NAMES } from '../commands';
+import { shell } from '../lib/shell';
 
 const NO_GAME = { active: false, target: 0, attempts: 0, max: 7 };
 
@@ -142,6 +143,7 @@ export function InputLine() {
       st.pushInput(<CommandEcho cwd={st.cwd} command={st.command + ' ^C'} />);
       if (st.game.active) st.setGame(NO_GAME);
       st.setCommand('', 0);
+      shell.lastExit = 130; // interrupted
       return;
     }
     setTimeout(syncCursor, 0);
