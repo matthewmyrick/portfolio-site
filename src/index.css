@@ -43,14 +43,23 @@ body {
   background-position: center;
 }
 
-/* Phones / portrait: `cover` scales the wallpaper to fill the (tall) viewport
-   and blows the Arch logo up enormously. `contain` shows the whole logo,
-   centered, over a matching dark backdrop so the letterboxing is invisible. */
+/* Phones / small windows: skip the photo wallpaper entirely — solid
+   wallpaper-blue (sampled from background.png) with the Arch logo tucked
+   bottom-right. Crisp at any size, no crop surprises. */
 @media (max-width: 640px), (orientation: portrait) {
   #app-bg {
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-color: #0f1016;
+    background: #145778;
+  }
+  #app-bg::after {
+    content: '';
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    width: 34vw;
+    max-width: 170px;
+    aspect-ratio: 1;
+    background: url('/arch-linux.svg') center / contain no-repeat;
+    opacity: 0.9;
   }
 }
 
