@@ -19,6 +19,7 @@ import { RickRoll } from './components/RickRoll';
 import { openVim } from './components/Vim';
 import { openLess } from './components/Less';
 import { SlTrain } from './components/eggs/SlTrain';
+import { PacmanInstall } from './components/eggs/Pacman';
 import { shell, resetShellSession, applyRcLine } from './lib/shell';
 
 export interface Ctx {
@@ -668,6 +669,41 @@ export const COMMANDS: Record<string, Command> = {
         <span className="t-dim">
           applied {n} definition{n === 1 ? '' : 's'} from {displayPath(abs)}
         </span>
+      );
+    }
+  },
+
+  pacman: {
+    desc: 'Package manager (btw)',
+    usage: 'pacman -S <pkg>',
+    group: 'Session',
+    hidden: true,
+    man: {
+      description:
+        'Installs any package you can imagine, at zero cost, with zero ' +
+        'effect. The wallpaper should have tipped you off about the ' +
+        'operating system situation here. -Syu also behaves as expected ' +
+        'for a system this well maintained.',
+      examples: ['pacman -S girlfriend', 'pacman -Syu'],
+      seeAlso: ['neofetch']
+    },
+    run: ({ args, flags }) => {
+      if (flags.S && flags.y && flags.u) {
+        S().setJob('pacman');
+        return print(<PacmanInstall pkg="" update />);
+      }
+      if (flags.S) {
+        if (!args.length) return printErr('error: no targets specified (use -h for help)');
+        S().setJob('pacman');
+        return print(<PacmanInstall pkg={args[0]} />);
+      }
+      print(
+        <div className="whitespace-pre-wrap">
+          {'usage:  pacman <operation> [...]\n' +
+            'operations:\n' +
+            '    pacman -S <package>   install a package\n' +
+            '    pacman -Syu           upgrade the system'}
+        </div>
       );
     }
   },
