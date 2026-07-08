@@ -50,7 +50,8 @@ function itemsFor(kind: OverlayKind): Item[] {
 const PROMPTS: Record<Exclude<OverlayKind, null>, string> = {
   fzf: 'files',
   theme: 'theme',
-  term: 'terminal'
+  term: 'terminal',
+  vim: 'vim' // never shown — vim renders its own fullscreen UI, not the Picker
 };
 
 // A terminal-native picker (like fzf): renders inline inside the terminal,
