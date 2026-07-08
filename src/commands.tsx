@@ -22,6 +22,7 @@ import { SlTrain } from './components/eggs/SlTrain';
 import { PacmanInstall } from './components/eggs/Pacman';
 import { Ping } from './components/eggs/Ping';
 import { Parrot } from './components/eggs/Parrot';
+import { RmRf } from './components/eggs/RmRf';
 import { shell, resetShellSession, applyRcLine } from './lib/shell';
 
 export interface Ctx {
@@ -672,6 +673,32 @@ export const COMMANDS: Record<string, Command> = {
           applied {n} definition{n === 1 ? '' : 's'} from {displayPath(abs)}
         </span>
       );
+    }
+  },
+
+  rm: {
+    desc: 'Remove files (careful with that)',
+    usage: 'rm [-rf] <path>',
+    group: 'Filesystem',
+    hidden: true,
+    man: {
+      description:
+        'Removes files. This filesystem is read-only, so individual ' +
+        'deletions politely fail. Recursive-force deletion of the root ' +
+        'filesystem is, of course, fully supported — every sysadmin ' +
+        'deserves to feel that at least once in a safe environment.',
+      examples: ['rm file.md', 'rm -rf /   (do it. no one will know.)'],
+      seeAlso: ['sudo', 'source']
+    },
+    run: ({ args, flags }) => {
+      const target = args[0] ?? '';
+      const nukeTargets = ['/', '/*', '~', '~/', '/home', '/home/visitor'];
+      if (flags.r && flags.f && nukeTargets.includes(target)) {
+        S().setJob('rmrf');
+        return print(<RmRf onReboot={() => startSession()} />);
+      }
+      if (!args.length) return printErr('rm: missing operand');
+      printErr(`rm: cannot remove '${args[0]}': Read-only file system (nice try)`);
     }
   },
 

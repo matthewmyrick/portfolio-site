@@ -130,3 +130,29 @@ body {
 .term-screen {
   text-shadow: 0 1px 3px rgb(0 0 0 / 0.55);
 }
+
+/* Screen glitch for the rm -rf / "kernel panic" (applied to <body>). */
+.mm-glitch {
+  animation: mm-glitch 0.13s steps(2, end) 7;
+}
+@keyframes mm-glitch {
+  0% {
+    transform: translate(0);
+    filter: none;
+  }
+  25% {
+    transform: translate(-7px, 3px) skewX(-2deg);
+    filter: invert(0.85) hue-rotate(90deg);
+  }
+  50% {
+    transform: translate(5px, -4px) skewX(3deg);
+    opacity: 0.55;
+  }
+  75% {
+    transform: translate(-3px, 1px);
+    filter: saturate(4) contrast(1.6);
+  }
+  100% {
+    transform: translate(0);
+  }
+}
