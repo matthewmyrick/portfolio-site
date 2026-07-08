@@ -269,6 +269,7 @@ export const GUEST_ROOT: DirNode = dir({
 
 // Root tree. cwd starts at HOME (/home/visitor), displayed as ~.
 export const ROOT: DirNode = dir({
+  tmp: dir({}), // scratch space (kubectl edit drops manifests here)
   home: dir({
     visitor: dir({
       '.bashrc': bashrc,
