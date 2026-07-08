@@ -200,6 +200,66 @@ function rickroll(): ReactNode {
 // sudo attempts this session (module-level: survives `clear` and `source`).
 let sudoAttempts = 0;
 
+// ---- fortune + cowsay ------------------------------------------------------
+const FORTUNES = [
+  'There is no place like 127.0.0.1.',
+  "It's not DNS. There's no way it's DNS. It was DNS.",
+  'A SRE walks into a bar. The bar has 99.95% uptime.',
+  'The S in IoT stands for Security.',
+  'Real engineers test in production. Great ones have a rollback plan.',
+  'You either die a startup or live long enough to run Kubernetes.',
+  "The cloud is just someone else's computer. This site is just my computer.",
+  'Weeks of coding can save you hours of planning.',
+  "A backup you haven't restored is a rumor.",
+  'chmod 777 is not a personality.',
+  'If it hurts, do it more often. — someone who never carried a pager',
+  'Postmortems: where "human error" goes to be renamed "missing guardrail".',
+  'Latency is zero when you self-host in your living room.',
+  "YAML: it's only whitespace-sensitive when you're in a hurry.",
+  "Nine women can't deploy a baby in one month.",
+  'The best alert is the one that never fires. The second best fires once.',
+  "Everything is a file. Especially the things that aren't.",
+  "Never trust a computer you can't throw out a window. — Steve Wozniak",
+  'sudo make me a sandwich.',
+  'There are two hard problems: cache invalidation, naming, and off-by-one errors.'
+];
+
+// Word-wrap a message and put a cow under it, cowsay(1)-style.
+function cowsayText(msg: string): string {
+  const words = (msg.trim() || 'moo?').split(/\s+/);
+  const lines: string[] = [];
+  let cur = '';
+  for (const w of words) {
+    if (cur && (cur + ' ' + w).length > 40) {
+      lines.push(cur);
+      cur = w;
+    } else {
+      cur = cur ? cur + ' ' + w : w;
+    }
+  }
+  lines.push(cur);
+  const width = Math.max(...lines.map((l) => l.length));
+  const pad = (l: string) => l + ' '.repeat(width - l.length);
+  const bubble =
+    lines.length === 1
+      ? [`< ${lines[0]} >`]
+      : lines.map((l, i) => {
+          const [open, close] =
+            i === 0 ? ['/', '\\'] : i === lines.length - 1 ? ['\\', '/'] : ['|', '|'];
+          return `${open} ${pad(l)} ${close}`;
+        });
+  return [
+    ' ' + '_'.repeat(width + 2),
+    ...bubble,
+    ' ' + '-'.repeat(width + 2),
+    '        \\   ^__^',
+    '         \\  (oo)\\_______',
+    '            (__)\\       )\\/\\',
+    '                ||----w |',
+    '                ||     ||'
+  ].join('\n');
+}
+
 // ---- pipe helpers (head / tail / wc) ----
 function headTail(which: 'head' | 'tail') {
   return (ctx: Ctx, stdin: string | null): string => {
@@ -674,6 +734,47 @@ export const COMMANDS: Record<string, Command> = {
         </span>
       );
     }
+  },
+
+  fortune: {
+    desc: 'Print a random, adequate fortune',
+    group: 'Session',
+    hidden: true,
+    man: {
+      description:
+        'Prints a random epigram of dubious wisdom, tuned for people who ' +
+        'carry pagers. Pipes beautifully into cowsay.',
+      examples: ['fortune', 'fortune | cowsay'],
+      seeAlso: ['cowsay']
+    },
+    run: () =>
+      print(
+        <div className="whitespace-pre-wrap">
+          {FORTUNES[Math.floor(Math.random() * FORTUNES.length)]}
+        </div>
+      ),
+    text: () => FORTUNES[Math.floor(Math.random() * FORTUNES.length)]
+  },
+
+  cowsay: {
+    desc: 'A cow that says things',
+    usage: 'cowsay <text>',
+    group: 'Session',
+    hidden: true,
+    man: {
+      description:
+        'An ASCII cow says whatever you tell it to (wrapped at 40 ' +
+        'columns), or whatever is piped into it. The cow does not judge.',
+      examples: ['cowsay hello there', 'fortune | cowsay', 'echo moo | cowsay'],
+      seeAlso: ['fortune', 'echo']
+    },
+    run: ({ rest }) =>
+      print(
+        <div className="leading-tight whitespace-pre">
+          {cowsayText(rest.replace(/^["']|["']$/g, ''))}
+        </div>
+      ),
+    text: ({ rest }, stdin) => cowsayText(stdin ?? rest.replace(/^["']|["']$/g, ''))
   },
 
   rm: {
