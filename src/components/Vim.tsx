@@ -12,6 +12,8 @@ export interface VimFile {
   path: string | null; // absolute path; null = scratch buffer (`:w` → E32)
   lines: string[];
   newFile: boolean;
+  // Site content opens read-only: browse freely, but edits and :w refuse.
+  readonly?: boolean;
   // Optional hook fired after a successful :w (used by e.g. `kubectl edit`).
   onWrite?: (content: string) => void;
 }
@@ -168,7 +170,7 @@ export function Vim() {
     cmdline: '',
     message: file.newFile
       ? `"${file.path ? displayPath(file.path) : '[No Name]'}" [New File]`
-      : `"${file.path ? displayPath(file.path) : '[No Name]'}" ${file.lines.length}L, ${file.lines.join('\n').length + 1}C`,
+      : `"${file.path ? displayPath(file.path) : '[No Name]'}"${file.readonly ? ' [readonly]' : ''} ${file.lines.length}L, ${file.lines.join('\n').length + 1}C`,
     modified: false,
     pendingKey: '',
     count: '',
@@ -197,9 +199,20 @@ export function Vim() {
       if (st.undo.length > 100) st.undo.shift();
     };
 
+    // Read-only buffers refuse modifications (this is my résumé, hands off 🙂).
+    const denyRo = (): boolean => {
+      if (!file.readonly) return false;
+      st.message = "E21: Cannot make changes, 'modifiable' is off (this file is read-only)";
+      return true;
+    };
+
     const write = (): boolean => {
       if (!file.path) {
         st.message = 'E32: No file name';
+        return false;
+      }
+      if (file.readonly) {
+        st.message = "E45: 'readonly' option is set (and no, ! will not help you here)";
         return false;
       }
       const content = st.lines.join('\n') + '\n';
@@ -263,6 +276,7 @@ export function Vim() {
         const pk = st.pendingKey;
         st.pendingKey = '';
         if (pk === 'd' && key === 'd') {
+          if (denyRo()) return clearCount();
           snap();
           st.yank = st.lines.slice(st.row, st.row + reps);
           st.lines.splice(st.row, reps);
@@ -344,6 +358,7 @@ export function Vim() {
           st.pendingKey = key;
           return; // keep the count for 2dd / 3yy
         case 'x':
+          if (denyRo()) break;
           if (line().length > 0) {
             snap();
             st.lines[st.row] = line().slice(0, st.col) + line().slice(st.col + reps);
@@ -352,6 +367,7 @@ export function Vim() {
           }
           break;
         case 'p':
+          if (denyRo()) break;
           if (st.yank) {
             snap();
             st.lines.splice(st.row + 1, 0, ...st.yank);
@@ -374,20 +390,24 @@ export function Vim() {
           break;
         }
         case 'i':
+          if (denyRo()) break;
           snap();
           st.mode = 'insert';
           break;
         case 'a':
+          if (denyRo()) break;
           snap();
           st.col = Math.min(line().length, st.col + 1);
           st.mode = 'insert';
           break;
         case 'A':
+          if (denyRo()) break;
           snap();
           st.col = line().length;
           st.mode = 'insert';
           break;
         case 'I': {
+          if (denyRo()) break;
           snap();
           const m = line().match(/\S/);
           st.col = m ? (m.index ?? 0) : 0;
@@ -395,6 +415,7 @@ export function Vim() {
           break;
         }
         case 'o':
+          if (denyRo()) break;
           snap();
           st.lines.splice(st.row + 1, 0, '');
           st.row = st.row + 1;
@@ -403,6 +424,7 @@ export function Vim() {
           st.modified = true;
           break;
         case 'O':
+          if (denyRo()) break;
           snap();
           st.lines.splice(st.row, 0, '');
           st.col = 0;
@@ -565,6 +587,7 @@ export function Vim() {
       >
         <span>
           {name}
+          {file.readonly ? ' [RO]' : ''}
           {st.modified ? ' [+]' : ''}
         </span>
         <span>

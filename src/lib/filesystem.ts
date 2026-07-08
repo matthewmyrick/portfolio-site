@@ -4,6 +4,9 @@
 export interface FileNode {
   type: 'file';
   content: string;
+  // Site content is read-only: viewable in vim, but :w is refused. Only
+  // explicitly editable files (.bashrc) and user-created ones are writable.
+  readonly?: boolean;
 }
 export interface DirNode {
   type: 'dir';
@@ -11,7 +14,12 @@ export interface DirNode {
 }
 export type FsNode = FileNode | DirNode;
 
-const file = (content: string): FileNode => ({ type: 'file', content: content.replace(/^\n/, '') });
+const file = (content: string): FileNode => ({
+  type: 'file',
+  content: content.replace(/^\n/, ''),
+  readonly: true
+});
+const editable = (content: string): FileNode => ({ ...file(content), readonly: false });
 const dir = (children: Record<string, FsNode>): DirNode => ({ type: 'dir', children });
 
 export const HOME = '/home/visitor';
@@ -215,7 +223,7 @@ ADMIN_PASSWORD=correct-horse-battery-staple
 
 // Session shell config — actually parsed at session start and by `source`.
 // Edit it in vim, `source ~/.bashrc`, and your aliases work for real.
-const bashrc = file(`
+const bashrc = editable(`
 # ~/.bashrc — applied at session start.
 # Edit me (vim ~/.bashrc), then run: source ~/.bashrc
 

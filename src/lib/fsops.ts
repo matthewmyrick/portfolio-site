@@ -67,7 +67,8 @@ export function basename(absPath: string): string {
 }
 
 // Create or overwrite a file (session-only — the FS tree lives in memory).
-// The parent directory must already exist. Returns false on failure.
+// The parent directory must already exist; read-only site content is
+// protected. Returns false on failure.
 export function writeFile(absPath: string, content: string): boolean {
   const parts = absPath.split('/').filter(Boolean);
   const name = parts.pop();
@@ -76,7 +77,8 @@ export function writeFile(absPath: string, content: string): boolean {
   if (!isDir(parent)) return false;
   const existing = parent.children[name];
   if (existing && existing.type === 'dir') return false;
-  parent.children[name] = { type: 'file', content };
+  if (existing && existing.type === 'file' && existing.readonly) return false;
+  parent.children[name] = { type: 'file', content, readonly: false };
   return true;
 }
 

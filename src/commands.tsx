@@ -338,9 +338,11 @@ const vimCommand: Command = {
       'A modal editor in the spirit of vim. NORMAL mode: h/j/k/l to move, ' +
       'w/b word motions, 0/$ line ends, gg/G file ends, x delete char, ' +
       'dd delete line, yy yank, p paste, o/O open line, i/a/A/I insert, ' +
-      'u undo. :w writes to the session filesystem (cat and grep see your ' +
-      'edits), :q quits, :q! quits without saving, :wq does both, :<n> ' +
-      'jumps to a line. Changes last until you reload the page.',
+      'u undo, and count prefixes (5j, 2dd, 10G). :w writes to the session ' +
+      'filesystem (cat and grep see your edits), :q quits, :q! quits ' +
+      'without saving, :wq does both, :<n> jumps to a line. Site content ' +
+      'opens [RO] — browse it, but no touching. Your own files (.bashrc, ' +
+      'new ones) are editable, until you reload the page.',
     examples: ['vim about.md', 'vim notes.md   (new file — :w creates it)', 'vim'],
     seeAlso: ['less', 'cat']
   },
@@ -356,7 +358,8 @@ const vimCommand: Command = {
       return openVim({
         path: abs,
         lines: node.content.replace(/\n$/, '').split('\n'),
-        newFile: false
+        newFile: false,
+        readonly: !!node.readonly // site content: browse yes, edit no
       });
     }
     // New file — its parent directory must exist; created for real on :w.
@@ -524,9 +527,17 @@ const KUBECTL_USAGE = [
 // ---- registry ------------------------------------------------------------
 export const COMMANDS: Record<string, Command> = {
   help: {
-    desc: 'Show this help message',
+    desc: 'Show this help message (-a for everything)',
+    usage: 'help [-a|--all]',
     group: 'Session',
-    run: () => print(helpOutput())
+    man: {
+      description:
+        'Lists the available commands by group. With -a (or --all), also ' +
+        'reveals the hidden commands and easter eggs. Spoilers, basically.',
+      examples: ['help', 'help -a'],
+      seeAlso: ['man', 'about']
+    },
+    run: ({ flags }) => print(helpOutput(!!flags.a || !!flags.all))
   },
 
   pwd: {
@@ -1766,13 +1777,21 @@ function CmdRow({ name, desc }: { name: string; desc: string }) {
   );
 }
 
-// Grouped list of commands (shared by `help` and `about`). `exclude` drops groups.
-function commandList(exclude: Command['group'][] = []): ReactNode {
+// Grouped list of commands (shared by `help` and `about`). `exclude` drops
+// groups; `all` appends the hidden easter eggs (skipping pure aliases like
+// vi/nvim, which share their run function with a visible command).
+function commandList(exclude: Command['group'][] = [], all = false): ReactNode {
   const groups = (['Filesystem', 'Customize', 'Session', 'Matthew'] as Command['group'][]).filter(
     (g) => !exclude.includes(g)
   );
+  const visibleRuns = new Set(
+    Object.values(COMMANDS)
+      .filter((c) => !c.hidden)
+      .map((c) => c.run)
+  );
+  const eggs = Object.entries(COMMANDS).filter(([, c]) => c.hidden && !visibleRuns.has(c.run));
   return (
-    <div className="flex flex-wrap gap-x-10 gap-y-4">
+    <div className="grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
       {groups.map((g) => (
         <div key={g} className="space-y-0.5">
           <div className="t-cyan font-bold">{g}</div>
@@ -1783,6 +1802,14 @@ function commandList(exclude: Command['group'][] = []): ReactNode {
             ))}
         </div>
       ))}
+      {all && (
+        <div className="space-y-0.5">
+          <div className="t-yellow font-bold">Easter eggs & extras 🥚</div>
+          {eggs.map(([name, c]) => (
+            <CmdRow key={name} name={name} desc={c.desc} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1831,21 +1858,27 @@ function aboutCard(): ReactNode {
   );
 }
 
-function helpOutput(): ReactNode {
+function helpOutput(all = false): ReactNode {
   return (
-    <div className="max-w-4xl space-y-3">
+    <div className="max-w-6xl space-y-3">
       <div>
         <span className="t-dim">New here? Start with </span>
         <span className="t-green font-bold">about</span>
         <span className="t-dim"> — it covers who I am, my experience, and projects.</span>
       </div>
       <div className="t-accent font-bold">Available commands</div>
-      {commandList(['Matthew'])}
+      {commandList(['Matthew'], all)}
       <div className="t-dim">
         Keys: <span className="t-yellow">Tab</span> complete · <span className="t-yellow">↑/↓</span>{' '}
-        history · <span className="t-yellow">Ctrl+L</span> clear ·{' '}
-        <span className="t-yellow">Ctrl+C</span> cancel
+        history · <span className="t-yellow">Ctrl+R</span> search ·{' '}
+        <span className="t-yellow">Ctrl+L</span> clear · <span className="t-yellow">Ctrl+C</span>{' '}
+        cancel
       </div>
+      {!all && (
+        <div className="t-dim">
+          Psst — there's more. <span className="t-green">help -a</span> shows everything. 🥚
+        </div>
+      )}
     </div>
   );
 }
