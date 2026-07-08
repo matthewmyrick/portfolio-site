@@ -65,6 +65,10 @@ export function Terminal() {
 
   const focusInput = () => {
     if (useStore.getState().overlay) return;
+    // Don't steal focus while text is selected — focusing the input would
+    // clear the selection before copy-on-select can grab it.
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) return;
     scrollRef.current?.querySelector('input')?.focus();
   };
 

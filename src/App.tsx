@@ -3,6 +3,7 @@ import { useStore } from './store';
 import { applyTheme } from './lib/themes';
 import { Chrome } from './components/Chrome';
 import { Terminal } from './components/Terminal';
+import { CopyToast } from './components/CopyToast';
 
 export default function App() {
   const theme = useStore((s) => s.theme);
@@ -21,6 +22,7 @@ export default function App() {
           <Terminal />
         </Chrome>
       </div>
+      <CopyToast />
     </>
   );
 }
