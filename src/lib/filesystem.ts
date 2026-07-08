@@ -230,6 +230,43 @@ alias cls='clear'
 # alias k='kubectl'
 `);
 
+// ---- guestbox — a second (entirely fictional) host you can `ssh` into -----
+
+const guestMotd = file(`
+Welcome to guestbox!
+
+  A spare Raspberry Pi living in a closet. It does one job:
+  making 'ssh guestbox' work on this site.
+
+  uptime: 420 days (nobody dares reboot it)
+`);
+
+const guestTodo = file(`
+# TODO (closet edition)
+
+- [ ] figure out what guestbox actually does
+- [ ] stop ssh-ing into prod to "just check something"
+- [x] blink the LED
+- [ ] dust
+- [ ] give this Pi a real job (it has been "temporary" for 420 days)
+`);
+
+const guestFlag = file(`
+flag{you_ssh_d_into_a_portfolio_site_and_ran_ls_-a_respect}
+
+(There is no prize. But if you email me this flag, I will be impressed.)
+`);
+
+export const GUEST_ROOT: DirNode = dir({
+  home: dir({
+    visitor: dir({
+      '.flag': guestFlag,
+      motd: guestMotd,
+      'TODO.txt': guestTodo
+    })
+  })
+});
+
 // Root tree. cwd starts at HOME (/home/visitor), displayed as ~.
 export const ROOT: DirNode = dir({
   home: dir({
