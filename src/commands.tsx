@@ -20,6 +20,7 @@ import { openVim } from './components/Vim';
 import { openLess } from './components/Less';
 import { SlTrain } from './components/eggs/SlTrain';
 import { PacmanInstall } from './components/eggs/Pacman';
+import { Ping } from './components/eggs/Ping';
 import { shell, resetShellSession, applyRcLine } from './lib/shell';
 
 export interface Ctx {
@@ -670,6 +671,37 @@ export const COMMANDS: Record<string, Command> = {
           applied {n} definition{n === 1 ? '' : 's'} from {displayPath(abs)}
         </span>
       );
+    }
+  },
+
+  ping: {
+    desc: 'Send ICMP echo requests (very fast ones)',
+    usage: 'ping <host>',
+    group: 'Session',
+    hidden: true,
+    man: {
+      description:
+        'Pings a host. Latency may strike you as suspiciously good; the ' +
+        'network path between you and this terminal is unusually short. ' +
+        'Runs until Ctrl+C, which prints the statistics block.',
+      examples: ['ping google.com', 'ping localhost', '^C'],
+      seeAlso: ['ssh', 'neofetch']
+    },
+    run: ({ args }) => {
+      if (!args.length) return printErr('usage: ping <host>');
+      const host = args[0].toLowerCase();
+      const known: Record<string, { ip: string; local?: boolean }> = {
+        localhost: { ip: '127.0.0.1', local: true },
+        '127.0.0.1': { ip: '127.0.0.1', local: true },
+        'matthewjmyrick.com': { ip: '127.0.0.1', local: true }, // you are here
+        'google.com': { ip: '142.250.65.78' },
+        'github.com': { ip: '140.82.112.4' },
+        guestbox: { ip: '192.168.1.42' }
+      };
+      const target = known[host];
+      if (!target) return printErr(`ping: ${host}: Name or service not known`);
+      S().setJob('ping');
+      print(<Ping host={host} ip={target.ip} local={target.local} />);
     }
   },
 
