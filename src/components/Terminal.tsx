@@ -10,8 +10,23 @@ export function Terminal() {
   const lines = useStore((s) => s.lines);
   const term = useStore((s) => s.term);
   const overlay = useStore((s) => s.overlay);
+  const job = useStore((s) => s.job);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // While a foreground job (animation) runs, input is hidden and Ctrl+C kills it.
+  useEffect(() => {
+    if (!job) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        e.stopPropagation();
+        useStore.getState().setJob(null);
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [job]);
 
   // Show Tux + welcome on first load (guard handles StrictMode double-mount).
   useEffect(() => {
@@ -65,7 +80,7 @@ export function Terminal() {
       ))}
       {overlay ? (
         <Picker />
-      ) : (
+      ) : job ? null : (
         <div className={warp ? 'warp-block' : ''}>
           <InputLine />
         </div>
