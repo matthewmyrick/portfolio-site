@@ -192,6 +192,9 @@ function rickroll(): ReactNode {
   return <RickRoll />;
 }
 
+// sudo attempts this session (module-level: survives `clear` and `source`).
+let sudoAttempts = 0;
+
 // ---- pipe helpers (head / tail / wc) ----
 function headTail(which: 'head' | 'tail') {
   return (ctx: Ctx, stdin: string | null): string => {
@@ -665,6 +668,44 @@ export const COMMANDS: Record<string, Command> = {
           applied {n} definition{n === 1 ? '' : 's'} from {displayPath(abs)}
         </span>
       );
+    }
+  },
+
+  sudo: {
+    desc: 'Execute a command as another user (lol, no)',
+    usage: 'sudo <command>',
+    group: 'Session',
+    hidden: true, // a discovery egg — tab-completes, but not in help
+    man: {
+      description:
+        'Executes a command with the security privileges of another user. ' +
+        'You, however, are `visitor`. Every attempt is logged. Keep trying ' +
+        'and someone will hear about it.',
+      examples: ['sudo rm -rf /', 'sudo !!'],
+      seeAlso: ['whoami', 'ssh']
+    },
+    run: ({ rest }) => {
+      if (!rest.trim()) {
+        return printErr('usage: sudo <command>');
+      }
+      sudoAttempts++;
+      printErr('visitor is not in the sudoers file.  This incident will be reported.');
+      if (sudoAttempts === 3) {
+        print(
+          <div className="mt-1">
+            <span className="t-yellow">You have new mail.</span>
+            <div className="t-dim">
+              From: root@homelab — subject: <span className="italic">"he's trying again."</span>
+            </div>
+          </div>
+        );
+      } else if (sudoAttempts > 3 && sudoAttempts % 3 === 0) {
+        print(
+          <span className="t-dim">
+            (attempt #{sudoAttempts} has been reported. root is no longer surprised.)
+          </span>
+        );
+      }
     }
   },
 
