@@ -760,6 +760,29 @@ export const COMMANDS: Record<string, Command> = {
     }
   },
 
+  htop: {
+    desc: 'Interactive process viewer',
+    group: 'Session',
+    hidden: true,
+    man: {
+      description:
+        'An interactive process viewer for this machine. The workload is ' +
+        'emotionally accurate: imposter-syndrome pegs a core, ' +
+        'coffee.service is essential, side-project is a zombie, and ' +
+        'prod-incident is sleeping (for now). q or Esc quits.',
+      examples: ['htop', 'q'],
+      seeAlso: ['neofetch', 'ping']
+    },
+    run: () => S().setOverlay('htop')
+  },
+
+  top: {
+    desc: 'htop for people who miss colors',
+    group: 'Session',
+    hidden: true,
+    run: () => S().setOverlay('htop')
+  },
+
   fortune: {
     desc: 'Print a random, adequate fortune',
     group: 'Session',
