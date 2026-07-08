@@ -20,7 +20,8 @@ function LiveText({
   cwd: string;
   ghost: string;
 }) {
-  const classes = highlightClasses(text, COMMAND_NAMES, cwd);
+  // Aliases are valid in command position too, so they highlight green.
+  const classes = highlightClasses(text, new Set([...COMMAND_NAMES, ...shell.aliases.keys()]), cwd);
   const chars = [...text];
   return (
     <span className="break-words whitespace-pre-wrap">

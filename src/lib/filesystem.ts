@@ -213,10 +213,28 @@ API_KEY=sk-live-totally-real-key-please-dont-look
 ADMIN_PASSWORD=correct-horse-battery-staple
 `);
 
+// Session shell config — actually parsed at session start and by `source`.
+// Edit it in vim, `source ~/.bashrc`, and your aliases work for real.
+const bashrc = file(`
+# ~/.bashrc — applied at session start.
+# Edit me (vim ~/.bashrc), then run: source ~/.bashrc
+
+export EDITOR=vim
+export LANG=en_US.UTF-8
+
+alias ll='ls -la'
+alias la='ls -a'
+alias cls='clear'
+
+# add your own:
+# alias k='kubectl'
+`);
+
 // Root tree. cwd starts at HOME (/home/visitor), displayed as ~.
 export const ROOT: DirNode = dir({
   home: dir({
     visitor: dir({
+      '.bashrc': bashrc,
       '.env': dotenv,
       'about.md': about,
       'contact.md': contact,
