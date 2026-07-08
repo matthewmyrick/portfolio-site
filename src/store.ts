@@ -41,6 +41,7 @@ interface State {
   opacity: number;
   game: GameState;
   overlay: OverlayKind;
+  host: string; // which "machine" we're on (ssh guestbox changes it)
 }
 
 interface Actions {
@@ -58,6 +59,7 @@ interface Actions {
   setHistoryIndex: (n: number) => void;
   setGame: (g: GameState) => void;
   setOverlay: (o: OverlayKind) => void;
+  setHost: (h: string) => void;
 }
 
 export type Store = State & Actions;
@@ -77,6 +79,7 @@ export const useStore = create<Store>()(
       opacity: 0.85,
       game: NO_GAME,
       overlay: null,
+      host: 'portfolio',
 
       setCommand: (v, cursor) => set((s) => ({ command: v, cursor: cursor ?? s.cursor })),
       setCursor: (n) => set({ cursor: n }),
@@ -108,7 +111,8 @@ export const useStore = create<Store>()(
         }),
       setHistoryIndex: (n) => set({ historyIndex: n }),
       setGame: (g) => set({ game: g }),
-      setOverlay: (o) => set({ overlay: o })
+      setOverlay: (o) => set({ overlay: o }),
+      setHost: (h) => set({ host: h })
     }),
     {
       name: 'mm-terminal',

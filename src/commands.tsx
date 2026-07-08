@@ -9,8 +9,10 @@ import {
   walkFiles,
   isDir,
   basename,
+  setActiveRoot,
   HOME
 } from './lib/fsops';
+import { ROOT, GUEST_ROOT } from './lib/filesystem';
 import { THEMES, isThemeName } from './lib/themes';
 import { TERMINALS, isTermType } from './lib/terminals';
 import { RickRoll } from './components/RickRoll';
@@ -144,10 +146,11 @@ function uptime(): string {
 }
 
 function neofetch(): ReactNode {
-  const { theme, term } = S();
+  const { theme, term, host } = S();
+  const guest = host !== 'portfolio';
   const info: [string, string][] = [
-    ['OS', 'Arch Linux (home lab)'],
-    ['Host', 'Apartment · NYC'],
+    ['OS', guest ? 'Raspberry Pi OS (closet)' : 'Arch Linux (home lab)'],
+    ['Host', guest ? 'A closet · NYC' : 'Apartment · NYC'],
     ['Kernel', 'react-vite-2.0.0'],
     ['Uptime', uptime()],
     ['Shell', 'mmsh 1.0'],
@@ -161,7 +164,7 @@ function neofetch(): ReactNode {
       <div>
         <span className="t-accent font-bold">visitor</span>
         <span className="t-dim">@</span>
-        <span className="t-accent font-bold">portfolio</span>
+        <span className="t-accent font-bold">{host}</span>
       </div>
       <div className="t-dim">-----------------</div>
       {info.map(([k, v]) => (
@@ -665,6 +668,73 @@ export const COMMANDS: Record<string, Command> = {
     }
   },
 
+  ssh: {
+    desc: 'Connect to another host (try: ssh guestbox)',
+    usage: 'ssh <host>',
+    group: 'Session',
+    man: {
+      description:
+        'Opens a connection to another machine on the (entirely fictional) ' +
+        "network. The prompt changes, and you get that host's own " +
+        'filesystem — look around. `exit` (or Ctrl+D energy) brings you ' +
+        'home. Currently the only reachable host is guestbox.',
+      examples: ['ssh guestbox', 'exit'],
+      seeAlso: ['exit', 'whoami']
+    },
+    run: ({ args }) => {
+      if (!args.length) return printErr('usage: ssh <host>  (hint: ssh guestbox)');
+      const target = args[0].replace(/^visitor@/, '').toLowerCase();
+      if (S().host === 'guestbox') {
+        return printErr(`ssh: connect to host ${target}: Network is unreachable (this is a Pi)`);
+      }
+      if (target !== 'guestbox') {
+        return printErr(`ssh: Could not resolve hostname ${target}: Name or service not known`);
+      }
+      setActiveRoot(GUEST_ROOT);
+      S().setHost('guestbox');
+      S().setCwd(HOME);
+      shell.env.set('HOSTNAME', 'guestbox');
+      print(
+        <div>
+          <div className="t-dim">
+            Warning: Permanently added 'guestbox' (ED25519) to the list of known hosts.
+          </div>
+          <div className="mt-1">
+            Welcome to <span className="t-magenta font-bold">guestbox</span> — a spare Raspberry Pi
+            in a closet. Uptime: 420 days.
+          </div>
+          <div className="t-dim">
+            Try <span className="t-green">ls</span> (maybe <span className="t-green">ls -a</span>
+            …), <span className="t-green">cat motd</span> — and{' '}
+            <span className="t-green">exit</span> to go home.
+          </div>
+        </div>
+      );
+    }
+  },
+
+  exit: {
+    desc: 'Close the connection (or try to leave)',
+    group: 'Session',
+    hidden: true,
+    run: () => {
+      if (S().host === 'guestbox') {
+        setActiveRoot(ROOT);
+        S().setHost('portfolio');
+        S().setCwd(HOME);
+        shell.env.set('HOSTNAME', 'portfolio');
+        return print(<span>Connection to guestbox closed.</span>);
+      }
+      print(
+        <span>
+          logout
+          <br />
+          <span className="t-dim">There's no place like 127.0.0.1 — you can never leave. 🏡</span>
+        </span>
+      );
+    }
+  },
+
   alias: {
     desc: 'Define or list command aliases',
     usage: "alias [name='value']",
@@ -1017,6 +1087,12 @@ function helpOutput(): ReactNode {
 export function startSession(): void {
   const st = S();
   st.clearLines();
+  // A new session always starts back on the portfolio host.
+  if (st.host !== 'portfolio') {
+    setActiveRoot(ROOT);
+    st.setHost('portfolio');
+    st.setCwd(HOME);
+  }
   // Fresh shell state, then apply ~/.bashrc (including any vim edits).
   resetShellSession();
   const rc = getNode(HOME + '/.bashrc');

@@ -188,7 +188,7 @@ export function InputLine() {
     }
     if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
       e.preventDefault();
-      st.pushInput(<CommandEcho cwd={st.cwd} command={st.command + ' ^C'} />);
+      st.pushInput(<CommandEcho cwd={st.cwd} host={st.host} command={st.command + ' ^C'} />);
       if (st.game.active) st.setGame(NO_GAME);
       st.setCommand('', 0);
       shell.lastExit = 130; // interrupted

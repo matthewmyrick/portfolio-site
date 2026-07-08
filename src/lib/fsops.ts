@@ -2,6 +2,13 @@ import { ROOT, HOME, type FsNode, type DirNode } from './filesystem';
 
 export { HOME } from './filesystem';
 
+// The filesystem being browsed — swapped when you `ssh` to another host.
+let activeRoot: DirNode = ROOT;
+
+export function setActiveRoot(root: DirNode): void {
+  activeRoot = root;
+}
+
 export function isDir(node: FsNode | null): node is DirNode {
   return !!node && node.type === 'dir';
 }
@@ -35,9 +42,9 @@ export function resolvePath(cwd: string, input: string): string {
 }
 
 export function getNode(absPath: string): FsNode | null {
-  if (absPath === '/') return ROOT;
+  if (absPath === '/') return activeRoot;
   const parts = absPath.split('/').filter(Boolean);
-  let node: FsNode = ROOT;
+  let node: FsNode = activeRoot;
   for (const part of parts) {
     if (!isDir(node)) return null;
     const next: FsNode | undefined = node.children[part];

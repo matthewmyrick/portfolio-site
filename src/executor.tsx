@@ -319,7 +319,7 @@ export function runCommand(raw: string): void {
 
   // While a game is running, all input goes to the game until quit.
   if (st.game.active) {
-    st.pushInput(<CommandEcho cwd={st.cwd} command={trimmed} />);
+    st.pushInput(<CommandEcho cwd={st.cwd} host={st.host} command={trimmed} />);
     st.pushHistory(trimmed);
     processGameInput(trimmed);
     return;
@@ -328,7 +328,7 @@ export function runCommand(raw: string): void {
   // History expansion happens first, against the PREVIOUS command. Like
   // bash, the expanded line is echoed and is what history remembers.
   const bang = expandBangs(trimmed);
-  st.pushInput(<CommandEcho cwd={st.cwd} command={trimmed} />);
+  st.pushInput(<CommandEcho cwd={st.cwd} host={st.host} command={trimmed} />);
   if ('error' in bang) {
     shell.lastExit = 1;
     return printErr(`mmsh: ${bang.error}: event not found`);

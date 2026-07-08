@@ -22,7 +22,13 @@ function UserIcon() {
   );
 }
 
-function PowerlinePrompt({ cwd, children }: { cwd: string; children: ReactNode }) {
+interface PromptParts {
+  cwd: string;
+  host: string;
+  children: ReactNode;
+}
+
+function PowerlinePrompt({ cwd, host, children }: PromptParts) {
   return (
     <div className="leading-snug">
       <div>
@@ -31,7 +37,7 @@ function PowerlinePrompt({ cwd, children }: { cwd: string; children: ReactNode }
           <UserIcon /> visitor
         </span>
         <span className="t-dim"> @ </span>
-        <span className="t-blue font-bold">portfolio</span>
+        <span className={`${host === 'portfolio' ? 't-blue' : 't-magenta'} font-bold`}>{host}</span>
         <span className="t-dim"> • </span>
         <span className="t-yellow">{displayPath(cwd)}</span>
       </div>
@@ -43,10 +49,10 @@ function PowerlinePrompt({ cwd, children }: { cwd: string; children: ReactNode }
   );
 }
 
-function ClassicPrompt({ cwd, children }: { cwd: string; children: ReactNode }) {
+function ClassicPrompt({ cwd, host, children }: PromptParts) {
   return (
     <div className="flex items-center">
-      <span className="t-green shrink-0 font-bold">visitor@portfolio</span>
+      <span className="t-green shrink-0 font-bold">visitor@{host}</span>
       <span className="t-blue shrink-0">&nbsp;{displayPath(cwd)}</span>
       <span className="t-accent shrink-0">&nbsp;%&nbsp;</span>
       <div className="min-w-0 flex-1">{children}</div>
@@ -54,13 +60,13 @@ function ClassicPrompt({ cwd, children }: { cwd: string; children: ReactNode }) 
   );
 }
 
-function WarpPrompt({ cwd, children }: { cwd: string; children: ReactNode }) {
+function WarpPrompt({ cwd, host, children }: PromptParts) {
   return (
     <div className="flex items-center">
       <span className="t-accent shrink-0">
         <UserIcon />
       </span>
-      <span className="t-fg shrink-0">&nbsp;visitor</span>
+      <span className="t-fg shrink-0">&nbsp;visitor{host !== 'portfolio' ? `@${host}` : ''}</span>
       <span className="t-dim shrink-0">&nbsp;{displayPath(cwd)}&nbsp;</span>
       <span className="t-accent shrink-0 font-bold">❯&nbsp;</span>
       <div className="min-w-0 flex-1">{children}</div>
@@ -68,13 +74,38 @@ function WarpPrompt({ cwd, children }: { cwd: string; children: ReactNode }) {
   );
 }
 
-// Prompt switches style based on the active terminal.
-export function Prompt({ cwd, children }: { cwd: string; children: ReactNode }) {
+// Prompt switches style based on the active terminal. `host` can be pinned
+// (past command echoes remember where they ran) or live from the store.
+export function Prompt({
+  cwd,
+  host,
+  children
+}: {
+  cwd: string;
+  host?: string;
+  children: ReactNode;
+}) {
   const term = useStore((s) => s.term);
+  const liveHost = useStore((s) => s.host);
+  const h = host ?? liveHost;
   const style = TERMINALS[term].prompt;
-  if (style === 'classic') return <ClassicPrompt cwd={cwd}>{children}</ClassicPrompt>;
-  if (style === 'warp') return <WarpPrompt cwd={cwd}>{children}</WarpPrompt>;
-  return <PowerlinePrompt cwd={cwd}>{children}</PowerlinePrompt>;
+  if (style === 'classic')
+    return (
+      <ClassicPrompt cwd={cwd} host={h}>
+        {children}
+      </ClassicPrompt>
+    );
+  if (style === 'warp')
+    return (
+      <WarpPrompt cwd={cwd} host={h}>
+        {children}
+      </WarpPrompt>
+    );
+  return (
+    <PowerlinePrompt cwd={cwd} host={h}>
+      {children}
+    </PowerlinePrompt>
+  );
 }
 
 // Render text with per-character highlight classes grouped into spans.
@@ -98,10 +129,19 @@ export function HighlightedText({ text, cwd }: { text: string; cwd: string }) {
   );
 }
 
-// A past command line: prompt + highlighted (static) command.
-export function CommandEcho({ cwd, command }: { cwd: string; command: string }) {
+// A past command line: prompt + highlighted (static) command. `host` is
+// captured at echo time so old lines don't change when you ssh around.
+export function CommandEcho({
+  cwd,
+  command,
+  host
+}: {
+  cwd: string;
+  command: string;
+  host?: string;
+}) {
   return (
-    <Prompt cwd={cwd}>
+    <Prompt cwd={cwd} host={host}>
       <HighlightedText text={command} cwd={cwd} />
     </Prompt>
   );
