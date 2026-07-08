@@ -38,6 +38,14 @@ export function Terminal() {
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [lines]);
 
+  // When the mobile software keyboard opens/closes it resizes the viewport —
+  // keep the prompt in view instead of leaving it hidden under the keyboard.
+  useEffect(() => {
+    const onResize = () => bottomRef.current?.scrollIntoView({ block: 'end' });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   // Group consecutive lines by their command group (used for Warp blocks).
   const groups = useMemo(() => {
     const out: { group: number; items: Line[] }[] = [];
