@@ -43,6 +43,17 @@ body {
   background-position: center;
 }
 
+/* Phones / portrait: `cover` scales the wallpaper to fill the (tall) viewport
+   and blows the Arch logo up enormously. `contain` shows the whole logo,
+   centered, over a matching dark backdrop so the letterboxing is invisible. */
+@media (max-width: 640px), (orientation: portrait) {
+  #app-bg {
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-color: #0f1016;
+  }
+}
+
 /* Theme color utilities (driven by CSS vars so themes recolor everything). */
 .t-fg {
   color: rgb(var(--t-fg));
@@ -129,6 +140,22 @@ body {
 /* Keep text legible over the wallpaper at high transparency. */
 .term-screen {
   text-shadow: 0 1px 3px rgb(0 0 0 / 0.55);
+  /* wide pre content (cowsay, htop) must never cause page-level h-scroll */
+  overflow-x: hidden;
+}
+
+/* No double-tap-to-zoom delay/zoom inside the app. */
+body {
+  touch-action: manipulation;
+}
+
+/* iOS Safari auto-zooms the page when a focused input's font-size is under
+   16px. Our command input is invisible (text is drawn separately), so giving
+   inputs 16px on phones kills the zoom with no visual change. */
+@media (max-width: 640px) {
+  input {
+    font-size: 16px;
+  }
 }
 
 /* Screen glitch for the rm -rf / "kernel panic" (applied to <body>). */
