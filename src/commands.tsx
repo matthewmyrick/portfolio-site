@@ -32,6 +32,9 @@ export interface Command {
   // Plain-text output for pipes (`a | b`). `stdin` is the previous stage's
   // output, or null when this command is first in the pipeline.
   text?: (ctx: Ctx, stdin: string | null) => string;
+  // Extra man-page content: long DESCRIPTION text and EXAMPLES / SEE ALSO.
+  // Every command gets a generated page from desc/usage; this enriches it.
+  man?: { description?: string; examples?: string[]; seeAlso?: string[] };
 }
 
 const APP_START = Date.now();
@@ -216,6 +219,17 @@ const vimCommand: Command = {
   desc: 'Edit a file (modal editor — good luck exiting)',
   usage: 'vim [file]',
   group: 'Filesystem',
+  man: {
+    description:
+      'A modal editor in the spirit of vim. NORMAL mode: h/j/k/l to move, ' +
+      'w/b word motions, 0/$ line ends, gg/G file ends, x delete char, ' +
+      'dd delete line, yy yank, p paste, o/O open line, i/a/A/I insert, ' +
+      'u undo. :w writes to the session filesystem (cat and grep see your ' +
+      'edits), :q quits, :q! quits without saving, :wq does both, :<n> ' +
+      'jumps to a line. Changes last until you reload the page.',
+    examples: ['vim about.md', 'vim notes.md   (new file — :w creates it)', 'vim'],
+    seeAlso: ['less', 'cat']
+  },
   run: ({ args }) => {
     if (!args.length) {
       // The most famous thing about vim is not knowing how to leave it.
@@ -245,6 +259,15 @@ const lessCommand: Command = {
   desc: 'Page through a file (j/k scroll, / search, q quit)',
   usage: 'less <file>',
   group: 'Filesystem',
+  man: {
+    description:
+      'A pager. j/k or arrows scroll by line, Space/b by page, d/u by ' +
+      'half page, g/G jump to the top/bottom. /pattern searches (n/N for ' +
+      'next/previous match, highlighted). q quits. Also works as a ' +
+      "pipeline sink: any command's output can be paged.",
+    examples: ['less resume.md', 'cat about.md | less', 'man ls   (opens here)'],
+    seeAlso: ['cat', 'man', 'vim']
+  },
   run: ({ args }) => {
     if (!args.length) return printErr('usage: less <file>  (or: cat file.md | less)');
     const abs = resolvePath(S().cwd, args[0]);
@@ -254,6 +277,55 @@ const lessCommand: Command = {
     openLess(displayPath(abs), node.content);
   }
 };
+
+// ---- man -------------------------------------------------------------------
+function wrapText(text: string, indent: string, width = 72): string[] {
+  const out: string[] = [];
+  for (const para of text.split('\n')) {
+    let line = '';
+    for (const word of para.split(/\s+/).filter(Boolean)) {
+      if (line && (line + ' ' + word).length > width) {
+        out.push(indent + line);
+        line = word;
+      } else {
+        line = line ? line + ' ' + word : word;
+      }
+    }
+    out.push(indent + line);
+  }
+  return out;
+}
+
+// Render a classic man(1) page for a command. Every command gets one,
+// generated from desc/usage and enriched by its optional `man` field.
+function manPage(name: string, cmd: Command): string {
+  const tag = `${name.toUpperCase()}(1)`;
+  const title = 'Portfolio Manual';
+  const width = 78;
+  const gap = Math.max(1, Math.floor((width - 2 * tag.length - title.length) / 2));
+  const header =
+    tag +
+    ' '.repeat(gap) +
+    title +
+    ' '.repeat(Math.max(1, width - 2 * tag.length - title.length - gap)) +
+    tag;
+
+  const ind = '       ';
+  const lines: string[] = [header, ''];
+  lines.push('NAME', `${ind}${name} - ${cmd.desc}`, '');
+  lines.push('SYNOPSIS', `${ind}${cmd.usage ?? name}`, '');
+  lines.push('DESCRIPTION', ...wrapText(cmd.man?.description ?? cmd.desc, ind), '');
+  if (cmd.man?.examples?.length) {
+    lines.push('EXAMPLES');
+    for (const ex of cmd.man.examples) lines.push(`${ind}${ex}`);
+    lines.push('');
+  }
+  if (cmd.man?.seeAlso?.length) {
+    lines.push('SEE ALSO', `${ind}${cmd.man.seeAlso.map((s) => `${s}(1)`).join(', ')}`, '');
+  }
+  lines.push(`mmsh 1.0${' '.repeat(Math.max(1, width - 8 - tag.length))}${tag}`);
+  return lines.join('\n');
+}
 
 // ---- registry ------------------------------------------------------------
 export const COMMANDS: Record<string, Command> = {
@@ -274,6 +346,15 @@ export const COMMANDS: Record<string, Command> = {
     desc: 'List directory contents',
     usage: 'ls [-l] [-a] [-R] [path]',
     group: 'Filesystem',
+    man: {
+      description:
+        'Lists the contents of a directory (the current one by default). ' +
+        '-l uses a long listing, -a includes hidden dotfiles (there may be ' +
+        'something interesting in there), and -R recurses into ' +
+        'subdirectories. Directories are shown in bold with a trailing /.',
+      examples: ['ls', 'ls -la', 'ls -R ~', 'ls projects/'],
+      seeAlso: ['cd', 'find', 'fzf']
+    },
     run: ({ args, flags }) => {
       const long = !!flags.l;
       const recursive = !!flags.R;
@@ -306,8 +387,17 @@ export const COMMANDS: Record<string, Command> = {
 
   cat: {
     desc: 'Print file contents',
-    usage: 'cat <file>',
+    usage: 'cat <file>...',
     group: 'Filesystem',
+    man: {
+      description:
+        'Prints a file with a bat-style frame: header, line-number gutter, ' +
+        'and light markdown coloring. In a pipeline it emits plain text ' +
+        '(cat resume.md | grep -i kubernetes). Some files are not what ' +
+        'they seem.',
+      examples: ['cat about.md', 'cat resume.md | grep -i go', 'cat experience/hadrius-ai.md'],
+      seeAlso: ['less', 'head', 'tail', 'grep']
+    },
     run: ({ args }) => {
       if (!args.length) return printErr('cat: missing file operand');
       args.forEach((a) => {
@@ -341,6 +431,15 @@ export const COMMANDS: Record<string, Command> = {
     desc: 'Search file contents for a pattern',
     usage: 'grep [-i] <pattern> [path]',
     group: 'Filesystem',
+    man: {
+      description:
+        'Searches for a regular-expression pattern. Standalone it walks ' +
+        'every file under [path] (default: the current directory) and ' +
+        'prints file:line matches. In a pipeline it filters stdin lines. ' +
+        '-i makes the match case-insensitive. Matches are highlighted.',
+      examples: ['grep -i kubernetes', 'cat resume.md | grep -i sre', 'ls | grep md'],
+      seeAlso: ['find', 'cat', 'fzf']
+    },
     run: ({ args, flags }) => {
       if (!args.length) return printErr('usage: grep [-i] <pattern> [path]');
       const pattern = args[0];
@@ -446,7 +545,17 @@ export const COMMANDS: Record<string, Command> = {
 
   fzf: {
     desc: 'Fuzzy-find a file (interactive)',
+    usage: 'fzf [| command]',
     group: 'Filesystem',
+    man: {
+      description:
+        'Opens an interactive fuzzy finder over every file in the ' +
+        'filesystem (subsequence matching, like the real junegunn/fzf). ' +
+        'Standalone, the selected file is opened with cat. As a pipeline ' +
+        "source, the selected file's contents feed the rest of the pipe.",
+      examples: ['fzf', 'fzf | grep -i kubernetes', 'fzf | less'],
+      seeAlso: ['find', 'grep', 'cat']
+    },
     run: () => S().setOverlay('fzf')
   },
 
@@ -456,6 +565,36 @@ export const COMMANDS: Record<string, Command> = {
 
   less: lessCommand,
   more: { ...lessCommand, hidden: true },
+
+  man: {
+    desc: 'Show the manual page for a command',
+    usage: 'man <command>',
+    group: 'Session',
+    man: {
+      description:
+        'Displays the manual page for a command in the pager. Pages are ' +
+        'generated for every command in this shell; some have extended ' +
+        'descriptions and examples. Yes, man man works.',
+      examples: ['man ls', 'man fzf', 'man man'],
+      seeAlso: ['help', 'less']
+    },
+    run: ({ args }) => {
+      if (!args.length) {
+        return printErr("What manual page do you want?\nFor example, try 'man ls'.");
+      }
+      const name = args[0].toLowerCase();
+      if (name === 'woman') return printErr('No manual entry for woman');
+      const cmd = COMMANDS[name];
+      if (!cmd) return printErr(`No manual entry for ${args[0]}`);
+      openLess(`man ${name}`, manPage(name, cmd));
+    },
+    // In a pipe, emit the page as plain text: `man ls | grep -i recursive`.
+    text: ({ args }) => {
+      const name = (args[0] ?? '').toLowerCase();
+      const cmd = COMMANDS[name];
+      return cmd && name !== 'woman' ? manPage(name, cmd) : '';
+    }
+  },
 
   open: {
     desc: 'Open a file in a new tab (e.g. open resume.pdf)',
