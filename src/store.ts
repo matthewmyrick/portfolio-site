@@ -42,6 +42,9 @@ interface State {
   game: GameState;
   overlay: OverlayKind;
   host: string; // which "machine" we're on (ssh guestbox changes it)
+  // A foreground "job" (animation like sl/ping). While set, the input line
+  // is hidden and Ctrl+C cancels it — like a real blocking process.
+  job: string | null;
 }
 
 interface Actions {
@@ -60,6 +63,7 @@ interface Actions {
   setGame: (g: GameState) => void;
   setOverlay: (o: OverlayKind) => void;
   setHost: (h: string) => void;
+  setJob: (j: string | null) => void;
 }
 
 export type Store = State & Actions;
@@ -80,6 +84,7 @@ export const useStore = create<Store>()(
       game: NO_GAME,
       overlay: null,
       host: 'portfolio',
+      job: null,
 
       setCommand: (v, cursor) => set((s) => ({ command: v, cursor: cursor ?? s.cursor })),
       setCursor: (n) => set({ cursor: n }),
@@ -112,7 +117,8 @@ export const useStore = create<Store>()(
       setHistoryIndex: (n) => set({ historyIndex: n }),
       setGame: (g) => set({ game: g }),
       setOverlay: (o) => set({ overlay: o }),
-      setHost: (h) => set({ host: h })
+      setHost: (h) => set({ host: h }),
+      setJob: (j) => set({ job: j })
     }),
     {
       name: 'mm-terminal',

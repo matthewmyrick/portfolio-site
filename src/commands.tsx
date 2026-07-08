@@ -18,6 +18,7 @@ import { TERMINALS, isTermType } from './lib/terminals';
 import { RickRoll } from './components/RickRoll';
 import { openVim } from './components/Vim';
 import { openLess } from './components/Less';
+import { SlTrain } from './components/eggs/SlTrain';
 import { shell, resetShellSession, applyRcLine } from './lib/shell';
 
 export interface Ctx {
@@ -668,6 +669,24 @@ export const COMMANDS: Record<string, Command> = {
           applied {n} definition{n === 1 ? '' : 's'} from {displayPath(abs)}
         </span>
       );
+    }
+  },
+
+  sl: {
+    desc: 'You meant ls. Enjoy the ride.',
+    group: 'Session',
+    hidden: true,
+    man: {
+      description:
+        'Displays a steam locomotive. The animation cannot be skipped — ' +
+        'watching the whole train pass is the traditional punishment for ' +
+        'typing too fast. (Fine: Ctrl+C works. Coward.)',
+      examples: ['sl'],
+      seeAlso: ['ls']
+    },
+    run: () => {
+      S().setJob('sl');
+      print(<SlTrain />);
     }
   },
 
