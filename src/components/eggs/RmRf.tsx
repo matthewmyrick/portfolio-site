@@ -101,8 +101,11 @@ export function RmRf({ id, onReboot }: { id: string; onReboot: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The output grows taller than the screen — pin the BOTTOM in view via a
+  // sentinel (scrollIntoView on the tall wrapper itself would no-op).
+  const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    wrapRef.current?.scrollIntoView({ block: 'nearest' });
+    endRef.current?.scrollIntoView({ block: 'end' });
   }, [n, phase, countdown]);
 
   return (
@@ -134,6 +137,7 @@ export function RmRf({ id, onReboot }: { id: string; onReboot: () => void }) {
           Rebooting{countdown > 0 ? ` in ${countdown}...` : '...'}
         </div>
       )}
+      <div ref={endRef} />
     </div>
   );
 }

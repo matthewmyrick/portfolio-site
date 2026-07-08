@@ -169,8 +169,10 @@ export function Vim() {
     mode: 'normal',
     cmdline: '',
     message: file.newFile
-      ? `"${file.path ? displayPath(file.path) : '[No Name]'}" [New File]`
-      : `"${file.path ? displayPath(file.path) : '[No Name]'}"${file.readonly ? ' [readonly]' : ''} ${file.lines.length}L, ${file.lines.join('\n').length + 1}C`,
+      ? `"${file.path ? displayPath(file.path) : '[No Name]'}" [New File] — press i to type, Esc then :wq to save`
+      : file.readonly
+        ? `"${file.path ? displayPath(file.path) : '[No Name]'}" [readonly] ${file.lines.length}L — browse with j/k, :q to leave`
+        : `"${file.path ? displayPath(file.path) : '[No Name]'}" ${file.lines.length}L, ${file.lines.join('\n').length + 1}C — press i to edit, Esc then :wq to save`,
     modified: false,
     pendingKey: '',
     count: '',
@@ -591,6 +593,15 @@ export function Vim() {
           {st.modified ? ' [+]' : ''}
         </span>
         <span>
+          {/* always-visible mode chip — so you never wonder why typing "does nothing" */}
+          <span
+            className={
+              st.mode === 'insert' ? 't-green' : st.mode === 'cmdline' ? 't-yellow' : 't-cyan'
+            }
+          >
+            {st.mode === 'insert' ? 'INSERT' : st.mode === 'cmdline' ? 'COMMAND' : 'NORMAL'}
+          </span>
+          <span className="t-dim"> · </span>
           {st.row + 1},{st.col + 1}
         </span>
       </div>

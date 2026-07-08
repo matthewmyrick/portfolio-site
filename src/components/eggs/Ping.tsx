@@ -44,8 +44,10 @@ export function Ping({ id, host, ip, local }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Pin the bottom (reply stream grows past a screenful).
+  const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    wrapRef.current?.scrollIntoView({ block: 'nearest' });
+    endRef.current?.scrollIntoView({ block: 'end' });
   }, [replies, done]);
 
   const min = replies.length ? Math.min(...replies) : 0;
@@ -85,6 +87,7 @@ export function Ping({ id, host, ip, local }: Props) {
           )}
         </div>
       )}
+      <div ref={endRef} />
     </div>
   );
 }

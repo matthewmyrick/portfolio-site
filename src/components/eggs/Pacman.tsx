@@ -52,7 +52,7 @@ export function PacmanInstall({ id, pkg, update }: { id: string; pkg: string; up
   }, []);
 
   useEffect(() => {
-    wrapRef.current?.scrollIntoView({ block: 'nearest' });
+    wrapRef.current?.scrollIntoView({ block: 'end' });
   }, [t]);
 
   const rows: React.ReactNode[] = [];
