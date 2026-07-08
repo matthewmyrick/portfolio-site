@@ -3,6 +3,7 @@ import { useStore, type Line } from '../store';
 import { InputLine } from './InputLine';
 import { Picker } from './Picker';
 import { Vim } from './Vim';
+import { Less } from './Less';
 import { startSession } from '../commands';
 
 export function Terminal() {
@@ -39,12 +40,12 @@ export function Terminal() {
 
   const warp = term === 'warp';
 
-  // vim is a fullscreen app: it takes over the whole screen (scrollback
-  // stays in the store and reappears when it exits).
-  if (overlay === 'vim') {
+  // vim/less are fullscreen apps: they take over the whole screen (scrollback
+  // stays in the store and reappears when they exit).
+  if (overlay === 'vim' || overlay === 'less') {
     return (
       <div className="term-screen t-fg h-full text-[13px] leading-relaxed sm:text-sm">
-        <Vim />
+        {overlay === 'vim' ? <Vim /> : <Less />}
       </div>
     );
   }

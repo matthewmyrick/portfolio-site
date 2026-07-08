@@ -19,8 +19,9 @@ export interface GameState {
   max: number;
 }
 
-// Which interactive overlay/TUI is open (fzf finder, theme/term pickers, vim).
-export type OverlayKind = 'fzf' | 'theme' | 'term' | 'vim' | null;
+// Which interactive overlay/TUI is open (fzf finder, theme/term pickers,
+// fullscreen apps like vim and less).
+export type OverlayKind = 'fzf' | 'theme' | 'term' | 'vim' | 'less' | null;
 
 const NO_GAME: GameState = { active: false, target: 0, attempts: 0, max: 7 };
 
