@@ -3,6 +3,7 @@ import { useStore, type GameState } from './store';
 import { COMMANDS } from './commands';
 import { CommandEcho } from './components/Prompt';
 import { getNode, resolvePath, HOME } from './lib/fsops';
+import { openLess } from './components/Less';
 
 const NO_GAME: GameState = { active: false, target: 0, attempts: 0, max: 7 };
 
@@ -80,18 +81,54 @@ function highlightMatches(line: string, re: RegExp): ReactNode[] {
   return parts;
 }
 
-function executePipeline(initial: string | null, segments: string[]): void {
+// Run each segment's text() handler, feeding output to the next. Prints an
+// error and returns null if a segment can't run.
+function runPipelineText(
+  initial: string | null,
+  segments: string[]
+): { out: string; last: Parsed | null } | null {
   let stdin = initial;
   let last: Parsed | null = null;
   for (const seg of segments) {
     const p = parse(seg);
     const cmd = COMMANDS[p.command];
-    if (!cmd) return printErr(`command not found: ${p.command} — type 'help'`);
-    if (!cmd.text) return printErr(`${p.command}: can't be used in a pipe`);
+    if (!cmd) {
+      printErr(`command not found: ${p.command} — type 'help'`);
+      return null;
+    }
+    if (!cmd.text) {
+      printErr(`${p.command}: can't be used in a pipe`);
+      return null;
+    }
     stdin = cmd.text({ args: p.args, flags: p.flags, rest: p.rest }, stdin);
     last = p;
   }
-  const out = stdin ?? '';
+  return { out: stdin ?? '', last };
+}
+
+function executePipeline(initial: string | null, segments: string[]): void {
+  // `less` is a sink: when it ends the pipeline, page the output instead of
+  // printing it. Anywhere else in a pipe it's an error (like a real pager).
+  const names = segments.map((s) => parse(s).command);
+  const pagerAt = names.findIndex((n) => n === 'less' || n === 'more');
+  if (pagerAt !== -1 && pagerAt !== segments.length - 1) {
+    return printErr(`${names[pagerAt]}: must be the last command in a pipeline`);
+  }
+  if (pagerAt !== -1) {
+    const head = segments.slice(0, -1);
+    let text = initial ?? '';
+    if (head.length) {
+      const r = runPipelineText(initial, head);
+      if (r == null) return;
+      text = r.out;
+    }
+    openLess(head.map((s) => s.trim()).join(' | ') || 'less', text);
+    return;
+  }
+
+  const result = runPipelineText(initial, segments);
+  if (result == null) return;
+  const { out, last } = result;
   if (out === '') return print(<span className="t-dim">(no output)</span>);
 
   // If the final stage was grep, highlight the matched pattern (soft yellow).

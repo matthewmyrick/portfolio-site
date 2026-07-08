@@ -15,6 +15,7 @@ import { THEMES, isThemeName } from './lib/themes';
 import { TERMINALS, isTermType } from './lib/terminals';
 import { RickRoll } from './components/RickRoll';
 import { openVim } from './components/Vim';
+import { openLess } from './components/Less';
 
 export interface Ctx {
   args: string[]; // positional args (quotes stripped)
@@ -239,6 +240,21 @@ const vimCommand: Command = {
   }
 };
 
+// ---- less ------------------------------------------------------------------
+const lessCommand: Command = {
+  desc: 'Page through a file (j/k scroll, / search, q quit)',
+  usage: 'less <file>',
+  group: 'Filesystem',
+  run: ({ args }) => {
+    if (!args.length) return printErr('usage: less <file>  (or: cat file.md | less)');
+    const abs = resolvePath(S().cwd, args[0]);
+    const node = getNode(abs);
+    if (!node) return printErr(`less: ${args[0]}: No such file or directory`);
+    if (node.type === 'dir') return printErr(`less: ${args[0]}: Is a directory`);
+    openLess(displayPath(abs), node.content);
+  }
+};
+
 // ---- registry ------------------------------------------------------------
 export const COMMANDS: Record<string, Command> = {
   help: {
@@ -437,6 +453,9 @@ export const COMMANDS: Record<string, Command> = {
   vim: vimCommand,
   nvim: { ...vimCommand, hidden: true },
   vi: { ...vimCommand, hidden: true },
+
+  less: lessCommand,
+  more: { ...lessCommand, hidden: true },
 
   open: {
     desc: 'Open a file in a new tab (e.g. open resume.pdf)',
