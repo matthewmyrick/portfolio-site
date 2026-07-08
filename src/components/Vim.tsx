@@ -188,6 +188,8 @@ export function Vim() {
   }).current;
   const [tick, bump] = useReducer((x: number) => x + 1, 0);
   const cursorRef = useRef<HTMLDivElement>(null);
+  // Escape delivered via KeyboardFocus blur detection (extension-proof).
+  const escapeRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     cursorRef.current?.scrollIntoView({ block: 'nearest' });
@@ -539,6 +541,13 @@ export function Vim() {
       clampCol();
     };
 
+    escapeRef.current = () => {
+      if (st.mode !== 'normal') {
+        toNormal();
+        bump();
+      }
+    };
+
     const onKey = (e: globalThis.KeyboardEvent) => {
       // Leave browser shortcuts alone — except Ctrl+[ / Ctrl+C, vim's other escapes.
       if (e.metaKey || e.altKey) return;
@@ -604,7 +613,7 @@ export function Vim() {
 
   return (
     <div className="flex h-full flex-col" data-tick={tick}>
-      <KeyboardFocus />
+      <KeyboardFocus onEscapeIntent={() => escapeRef.current()} />
       {/* buffer */}
       <div className="min-h-0 flex-1 overflow-y-auto px-1 py-1 whitespace-pre">
         <span ref={probeRef} className="invisible absolute">
