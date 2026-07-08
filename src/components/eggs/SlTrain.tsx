@@ -28,13 +28,17 @@ export function SlTrain({ id }: { id: string }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [gone, setGone] = useState(alreadyGone);
 
+  // Keep the train in view for its whole run (no-op once we're at the
+  // bottom, but guarantees visibility however long the scrollback is).
+  useEffect(() => {
+    if (x !== null) wrapRef.current?.scrollIntoView({ block: 'end' });
+  }, [x]);
+
   useEffect(() => {
     if (alreadyGone) return;
     const width = wrapRef.current?.clientWidth ?? 800;
     let cur = width;
     setX(cur);
-    // The train renders on the next paint — scroll it into view then.
-    requestAnimationFrame(() => wrapRef.current?.scrollIntoView({ block: 'end' }));
     const finish = () => {
       clearInterval(iv);
       setGone(true);

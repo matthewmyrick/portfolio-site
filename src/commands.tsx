@@ -1094,8 +1094,9 @@ export const COMMANDS: Record<string, Command> = {
           }
           print(
             <span className="t-dim">
-              Opening deployment/portfolio-web in $EDITOR (vim, obviously). Find the resource limit,
-              fix it, <span className="t-green">:wq</span>.
+              Opening deployment/portfolio-web in $EDITOR (vim, obviously). Find the memory limit,
+              press <span className="t-green">i</span> to edit, fix it, then{' '}
+              <span className="t-green">Esc</span> and <span className="t-green">:wq</span>.
             </span>
           );
           const path = `/tmp/kubectl-edit-${cluster.suffix}.yaml`;

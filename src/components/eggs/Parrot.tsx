@@ -60,7 +60,7 @@ export function Parrot({ id }: { id: string }) {
 
   useEffect(() => {
     if (prior) return; // the party already ended — render the epilogue only
-    wrapRef.current?.scrollIntoView({ block: 'nearest' });
+    wrapRef.current?.scrollIntoView({ block: 'end' });
     const start = Date.now();
     let f = 0;
     const finish = () => {
