@@ -4,6 +4,7 @@ import { InputLine } from './InputLine';
 import { Picker } from './Picker';
 import { Vim } from './Vim';
 import { Less } from './Less';
+import { Htop } from './eggs/Htop';
 import { startSession } from '../commands';
 
 export function Terminal() {
@@ -55,12 +56,12 @@ export function Terminal() {
 
   const warp = term === 'warp';
 
-  // vim/less are fullscreen apps: they take over the whole screen (scrollback
-  // stays in the store and reappears when they exit).
-  if (overlay === 'vim' || overlay === 'less') {
+  // vim/less/htop are fullscreen apps: they take over the whole screen
+  // (scrollback stays in the store and reappears when they exit).
+  if (overlay === 'vim' || overlay === 'less' || overlay === 'htop') {
     return (
       <div className="term-screen t-fg h-full text-[13px] leading-relaxed sm:text-sm">
-        {overlay === 'vim' ? <Vim /> : <Less />}
+        {overlay === 'vim' ? <Vim /> : overlay === 'less' ? <Less /> : <Htop />}
       </div>
     );
   }

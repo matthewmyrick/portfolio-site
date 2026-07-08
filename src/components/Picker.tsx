@@ -51,8 +51,9 @@ const PROMPTS: Record<Exclude<OverlayKind, null>, string> = {
   fzf: 'files',
   theme: 'theme',
   term: 'terminal',
-  vim: 'vim', // never shown — vim/less render their own fullscreen UI, not the Picker
-  less: 'less'
+  vim: 'vim', // never shown — vim/less/htop render their own fullscreen UI, not the Picker
+  less: 'less',
+  htop: 'htop'
 };
 
 // A terminal-native picker (like fzf): renders inline inside the terminal,
