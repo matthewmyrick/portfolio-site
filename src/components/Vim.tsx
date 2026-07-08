@@ -12,6 +12,8 @@ export interface VimFile {
   path: string | null; // absolute path; null = scratch buffer (`:w` → E32)
   lines: string[];
   newFile: boolean;
+  // Optional hook fired after a successful :w (used by e.g. `kubectl edit`).
+  onWrite?: (content: string) => void;
 }
 
 let pendingFile: VimFile = { path: null, lines: [''], newFile: false };
@@ -125,6 +127,7 @@ export function Vim() {
       }
       st.modified = false;
       st.message = `"${displayPath(file.path)}" ${st.lines.length}L, ${content.length}C written`;
+      file.onWrite?.(content);
       return true;
     };
 

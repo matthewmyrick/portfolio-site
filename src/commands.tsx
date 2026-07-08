@@ -24,6 +24,21 @@ import { Ping } from './components/eggs/Ping';
 import { Parrot } from './components/eggs/Parrot';
 import { RmRf } from './components/eggs/RmRf';
 import { shell, resetShellSession, applyRcLine } from './lib/shell';
+import {
+  cluster,
+  resetCluster,
+  touchCluster,
+  phase as clusterPhase,
+  setMemLimit,
+  respawnCrashPod,
+  crashPodName,
+  mttr,
+  pods,
+  crashLogs,
+  describeCrashPod,
+  parseManifestLimit,
+  DEPLOY_MANIFEST
+} from './lib/cluster';
 
 export interface Ctx {
   args: string[]; // positional args (quotes stripped)
@@ -424,6 +439,84 @@ function manPage(name: string, cmd: Command): string {
   return lines.join('\n');
 }
 
+// ---- kubectl (the incident) -------------------------------------------------
+function podTable(): ReactNode {
+  const rows = pods();
+  const pad = (s: string, n: number) => s.padEnd(n);
+  return (
+    <div className="leading-relaxed whitespace-pre">
+      <div className="t-dim">
+        {pad('NAME', 34) + pad('READY', 8) + pad('STATUS', 20) + pad('RESTARTS', 11) + 'AGE'}
+      </div>
+      {rows.map((p) => (
+        <div key={p.name}>
+          {pad(p.name, 34)}
+          {pad(p.ready, 8)}
+          <span
+            className={
+              p.status === 'Running'
+                ? 't-green'
+                : p.status === 'CrashLoopBackOff'
+                  ? 't-red font-bold'
+                  : 't-yellow'
+            }
+          >
+            {pad(p.status, 20)}
+          </span>
+          <span className={p.restarts > 3 ? 't-red' : 't-fg'}>{pad(String(p.restarts), 11)}</span>
+          {p.age}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// After any kubectl command, celebrate the first time the cluster is healthy.
+function maybeCelebrate(): void {
+  if (clusterPhase() === 'healthy' && !cluster.celebrated) {
+    cluster.celebrated = true;
+    print(
+      <div className="mt-1">
+        <span className="t-green font-bold">🎉 incident resolved</span>
+        <span className="t-dim"> — MTTR: </span>
+        <span className="t-yellow font-bold">{mttr()}</span>
+        <span className="t-dim"> · portfolio-web is healthy again. go write the postmortem.</span>
+      </div>
+    );
+  }
+}
+
+function applyLimitFix(mi: number, via: string): void {
+  const result = setMemLimit(mi);
+  if (result === 'fixed') {
+    print(<span>deployment.apps/portfolio-web {via}</span>);
+    print(
+      <span className="t-dim">
+        (new pods rolling out — try{' '}
+        <span className="t-green">kubectl rollout status deployment/portfolio-web</span>, then{' '}
+        <span className="t-green">kubectl get pods</span>)
+      </span>
+    );
+  } else {
+    print(<span>deployment.apps/portfolio-web {via}</span>);
+    printErr(`warning: ${mi}Mi is still not enough memory. the pod respectfully continues to die.`);
+  }
+}
+
+const KUBECTL_USAGE = [
+  'kubectl controls the (this) Kubernetes cluster.',
+  '',
+  '  kubectl get pods                  list pods (something looks wrong)',
+  '  kubectl get deployments           list deployments',
+  '  kubectl get events                recent cluster events',
+  '  kubectl logs <pod>                container logs',
+  '  kubectl describe pod <pod>        everything about a pod',
+  '  kubectl delete pod <pod>          (see what happens)',
+  '  kubectl edit deployment portfolio-web',
+  '  kubectl set resources deployment portfolio-web --limits=memory=256Mi',
+  '  kubectl rollout status|restart deployment/portfolio-web'
+].join('\n');
+
 // ---- registry ------------------------------------------------------------
 export const COMMANDS: Record<string, Command> = {
   help: {
@@ -757,6 +850,257 @@ export const COMMANDS: Record<string, Command> = {
           applied {n} definition{n === 1 ? '' : 's'} from {displayPath(abs)}
         </span>
       );
+    }
+  },
+
+  kubectl: {
+    desc: 'Debug the cluster (something is CrashLoopBackOff)',
+    usage: 'kubectl get pods',
+    group: 'Session',
+    hidden: true,
+    man: {
+      description:
+        'kubectl controls this (fake, but emotionally real) Kubernetes ' +
+        'cluster, which currently has a live incident: a pod is in ' +
+        'CrashLoopBackOff. Investigate with logs and describe, fix it ' +
+        'with set resources or edit (opens vim), then watch the rollout. ' +
+        'Your MTTR is being measured. No pressure.',
+      examples: [
+        'kubectl get pods',
+        'kubectl logs <the-crashing-pod>',
+        'kubectl describe pod <the-crashing-pod>',
+        'kubectl set resources deployment portfolio-web --limits=memory=256Mi',
+        'kubectl rollout status deployment/portfolio-web'
+      ],
+      seeAlso: ['vim', 'htop', 'ssh']
+    },
+    run: ({ args, rest }) => {
+      touchCluster();
+      const sub = (args[0] ?? '').toLowerCase();
+      const podNames = pods().map((p) => p.name);
+      const isCrash = (name?: string) => name === crashPodName();
+      const notFound = (pod?: string) =>
+        printErr(`Error from server (NotFound): pods "${pod ?? ''}" not found`);
+
+      switch (sub) {
+        case 'get': {
+          const what = (args[1] ?? '').toLowerCase();
+          if (['pods', 'pod', 'po'].includes(what)) {
+            print(podTable());
+            return maybeCelebrate();
+          }
+          if (['deployments', 'deployment', 'deploy'].includes(what)) {
+            const ready = clusterPhase() === 'healthy' ? '2/2' : '1/2';
+            print(
+              <div className="whitespace-pre">
+                <div className="t-dim">
+                  {'NAME             READY   UP-TO-DATE   AVAILABLE   AGE'}
+                </div>
+                <div>
+                  {'portfolio-web    '}
+                  <span className={ready === '2/2' ? 't-green' : 't-red font-bold'}>{ready}</span>
+                  {'     2            ' + ready[0] + '           12d'}
+                </div>
+                <div>{'nginx-ingress    1/1     1            1           30d'}</div>
+                <div>{'redis-cache      1/1     1            1           30d'}</div>
+              </div>
+            );
+            return maybeCelebrate();
+          }
+          if (what === 'events') {
+            print(
+              <div className="whitespace-pre-wrap">
+                {clusterPhase() === 'broken'
+                  ? `LAST SEEN   TYPE      REASON       OBJECT                    MESSAGE\n` +
+                    `30s         Warning   BackOff      pod/${crashPodName()}   Back-off restarting failed container\n` +
+                    `45s         Warning   OOMKilling   node/homelab-node-1       Memory cgroup out of memory\n` +
+                    `12m         Normal    Scheduled    pod/${crashPodName()}   Successfully assigned default/portfolio-web`
+                  : 'LAST SEEN   TYPE     REASON      OBJECT              MESSAGE\n' +
+                    '1m          Normal   Pulled      pod/portfolio-web   Container started\n' +
+                    '(a suspiciously quiet cluster. well done.)'}
+              </div>
+            );
+            return maybeCelebrate();
+          }
+          if (!what) {
+            return printErr(
+              'error: you must specify the type of resource to get (try: kubectl get pods)'
+            );
+          }
+          return printErr(`error: the server doesn't have a resource type "${args[1]}"`);
+        }
+
+        case 'logs': {
+          const pod = args[1];
+          if (!pod) return printErr('error: expected a pod name (run kubectl get pods first)');
+          if (!podNames.includes(pod)) return notFound(pod);
+          if (isCrash(pod) && clusterPhase() === 'broken') {
+            return print(
+              <div className="whitespace-pre-wrap">
+                {crashLogs()
+                  .split('\n')
+                  .map((l, i) => (
+                    <div key={i} className={/fatal|OOMKilled/.test(l) ? 't-red font-bold' : ''}>
+                      {l}
+                    </div>
+                  ))}
+              </div>
+            );
+          }
+          print(
+            <div className="t-dim whitespace-pre-wrap">
+              {
+                '2026/07/07 14:00:01 listening on :80\n2026/07/07 14:00:01 ready. nothing to report. some of us simply do our jobs.'
+              }
+            </div>
+          );
+          return maybeCelebrate();
+        }
+
+        case 'describe': {
+          const pod = args[2] ?? args[1];
+          if (!pod || pod === 'pod') return printErr('usage: kubectl describe pod <name>');
+          if (!podNames.includes(pod)) return notFound(pod);
+          if (isCrash(pod) && clusterPhase() === 'broken') {
+            return print(
+              <div className="whitespace-pre-wrap">
+                {describeCrashPod()
+                  .split('\n')
+                  .map((l, i) => (
+                    <div
+                      key={i}
+                      className={
+                        /OOMKilled|CrashLoopBackOff|BackOff|suspicious/.test(l)
+                          ? 't-red'
+                          : /^Events|^Containers/.test(l)
+                            ? 't-cyan font-bold'
+                            : ''
+                      }
+                    >
+                      {l}
+                    </div>
+                  ))}
+              </div>
+            );
+          }
+          print(
+            <div className="t-dim whitespace-pre-wrap">
+              {`Name:    ${pod}\nStatus:  Running\nEvents:  <none>  (this one is fine. look at the other one.)`}
+            </div>
+          );
+          return maybeCelebrate();
+        }
+
+        case 'delete': {
+          if ((args[1] ?? '').toLowerCase() !== 'pod') {
+            return printErr('usage: kubectl delete pod <name>');
+          }
+          const pod = args[2];
+          if (!pod || !podNames.includes(pod)) return notFound(pod);
+          if (isCrash(pod) && clusterPhase() === 'broken') {
+            const newName = respawnCrashPod();
+            print(<span>pod "{pod}" deleted</span>);
+            return print(
+              <span className="t-dim">
+                (the Deployment immediately created <span className="t-red">{newName}</span> — also
+                OOMKilled. deleting pods doesn't raise a memory limit. that's the lesson.)
+              </span>
+            );
+          }
+          print(<span>pod "{pod}" deleted</span>);
+          print(<span className="t-dim">(a replacement spun up. the cluster is unbothered.)</span>);
+          return maybeCelebrate();
+        }
+
+        case 'set': {
+          if ((args[1] ?? '').toLowerCase() !== 'resources') {
+            return printErr(
+              'usage: kubectl set resources deployment portfolio-web --limits=memory=256Mi'
+            );
+          }
+          if (!/portfolio-web/i.test(rest)) {
+            return printErr('error: deployment not found (the broken one is portfolio-web)');
+          }
+          const m = rest.match(/--limits[=\s]+memory=(\d+)(mi|gi)/i);
+          if (!m) return printErr('error: specify --limits=memory=<size>Mi');
+          const mi = m[2].toLowerCase() === 'gi' ? parseInt(m[1], 10) * 1024 : parseInt(m[1], 10);
+          applyLimitFix(mi, 'resource requirements updated');
+          return maybeCelebrate();
+        }
+
+        case 'edit': {
+          if (!/portfolio-web/i.test(rest)) {
+            return printErr('usage: kubectl edit deployment portfolio-web');
+          }
+          if (clusterPhase() !== 'broken') {
+            print(<span className="t-dim">deployment is healthy — nothing needs editing. 🎉</span>);
+            return maybeCelebrate();
+          }
+          print(
+            <span className="t-dim">
+              Opening deployment/portfolio-web in $EDITOR (vim, obviously). Find the resource limit,
+              fix it, <span className="t-green">:wq</span>.
+            </span>
+          );
+          const path = `/tmp/kubectl-edit-${cluster.suffix}.yaml`;
+          return openVim({
+            path,
+            lines: [...DEPLOY_MANIFEST],
+            newFile: true,
+            onWrite: (content) => {
+              const mi = parseManifestLimit(content);
+              if (mi !== null) applyLimitFix(mi, 'edited');
+            }
+          });
+        }
+
+        case 'rollout': {
+          const op = (args[1] ?? '').toLowerCase();
+          if (!/portfolio-web/i.test(rest)) {
+            return printErr('usage: kubectl rollout status deployment/portfolio-web');
+          }
+          if (op === 'status') {
+            const p = clusterPhase();
+            if (p === 'broken') {
+              return printErr(
+                'Waiting for deployment "portfolio-web" rollout to finish: 1 old replicas are pending termination...\n(it will wait forever — the pod is OOMKilled. fix the memory limit.)'
+              );
+            }
+            if (p === 'rolling') {
+              return print(
+                <span>
+                  Waiting for deployment "portfolio-web" rollout to finish:{' '}
+                  <span className="t-yellow">1 of 2</span> updated replicas are available...
+                </span>
+              );
+            }
+            print(
+              <span className="t-green">deployment "portfolio-web" successfully rolled out</span>
+            );
+            return maybeCelebrate();
+          }
+          if (op === 'restart') {
+            print(<span>deployment.apps/portfolio-web restarted</span>);
+            if (clusterPhase() === 'broken') {
+              return print(
+                <span className="t-dim">
+                  (new pod, same 64Mi limit, same OOMKill. a restart is not a memory upgrade.)
+                </span>
+              );
+            }
+            return maybeCelebrate();
+          }
+          return printErr('usage: kubectl rollout status|restart deployment/portfolio-web');
+        }
+
+        case '':
+          return print(<div className="whitespace-pre-wrap">{KUBECTL_USAGE}</div>);
+
+        default:
+          return printErr(
+            `error: unknown command "${args[0]}" for "kubectl" — run bare kubectl for usage`
+          );
+      }
     }
   },
 
@@ -1469,6 +1813,8 @@ export function startSession(): void {
     st.setHost('portfolio');
     st.setCwd(HOME);
   }
+  // Fresh incident for a fresh session (survives `clear`, resets on `source`).
+  resetCluster();
   // Fresh shell state, then apply ~/.bashrc (including any vim edits).
   resetShellSession();
   const rc = getNode(HOME + '/.bashrc');
