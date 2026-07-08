@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../store';
+import { eggResult, setEggResult } from './cache';
 
 // The classic `sl` steam locomotive (mtoyoda/sl homage): typo `ls`, watch a
 // train chug across the terminal. Runs as a foreground job — you can't type
@@ -21,19 +22,23 @@ __/ =| o |=-~~\  /~~\  /~~\  /~~\ ____Y___________|__
 const SPEED_PX = 14; // per frame
 const FRAME_MS = 30;
 
-export function SlTrain() {
+export function SlTrain({ id }: { id: string }) {
+  const alreadyGone = eggResult<boolean>(id) === true;
   const [x, setX] = useState<number | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const [gone, setGone] = useState(false);
+  const [gone, setGone] = useState(alreadyGone);
 
   useEffect(() => {
-    wrapRef.current?.scrollIntoView({ block: 'nearest' });
+    if (alreadyGone) return;
     const width = wrapRef.current?.clientWidth ?? 800;
     let cur = width;
     setX(cur);
+    // The train renders on the next paint — scroll it into view then.
+    requestAnimationFrame(() => wrapRef.current?.scrollIntoView({ block: 'end' }));
     const finish = () => {
       clearInterval(iv);
       setGone(true);
+      setEggResult(id, true);
       const st = useStore.getState();
       if (st.job === 'sl') st.setJob(null);
     };
@@ -45,18 +50,21 @@ export function SlTrain() {
       setX(cur);
     }, FRAME_MS);
     return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (gone || x === null) return null;
+  if (gone) return null;
 
   return (
     <div ref={wrapRef} className="overflow-hidden">
-      <pre
-        className="t-fg leading-tight whitespace-pre"
-        style={{ transform: `translateX(${x}px)`, willChange: 'transform' }}
-      >
-        {ENGINE}
-      </pre>
+      {x !== null && (
+        <pre
+          className="t-fg leading-tight whitespace-pre"
+          style={{ transform: `translateX(${x}px)`, willChange: 'transform' }}
+        >
+          {ENGINE}
+        </pre>
+      )}
     </div>
   );
 }

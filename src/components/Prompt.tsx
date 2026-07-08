@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { displayPath } from '../lib/fsops';
 import { highlightClasses } from '../lib/highlight';
 import { COMMAND_NAMES } from '../commands';
+import { shell } from '../lib/shell';
 import { TERMINALS } from '../lib/terminals';
 
 // Account icon (the p10k "user" glyph) as inline SVG so it renders everywhere —
@@ -110,7 +111,8 @@ export function Prompt({
 
 // Render text with per-character highlight classes grouped into spans.
 export function HighlightedText({ text, cwd }: { text: string; cwd: string }) {
-  const classes = highlightClasses(text, COMMAND_NAMES, cwd);
+  // Aliases count as valid commands too, so `ll` stays green after Enter.
+  const classes = highlightClasses(text, new Set([...COMMAND_NAMES, ...shell.aliases.keys()]), cwd);
   const runs: { cls: string; text: string }[] = [];
   for (let i = 0; i < text.length; i++) {
     const cls = classes[i] ?? '';

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../store';
+import { eggResult, setEggResult } from './cache';
 
 // Fake `ping` with suspiciously excellent latency (the server is, after all,
 // in the same apartment as the wallpaper). Runs until Ctrl+C (or a polite
@@ -8,22 +9,26 @@ import { useStore } from '../../store';
 const MAX_REPLIES = 30;
 
 interface Props {
+  id: string;
   host: string;
   ip: string;
   local?: boolean; // localhost gets even more absurd numbers
 }
 
-export function Ping({ host, ip, local }: Props) {
-  const [replies, setReplies] = useState<number[]>([]); // rtt per reply, ms
-  const [done, setDone] = useState(false);
+export function Ping({ id, host, ip, local }: Props) {
+  const prior = eggResult<number[]>(id);
+  const [replies, setReplies] = useState<number[]>(prior ?? []); // rtt per reply, ms
+  const [done, setDone] = useState(prior !== undefined);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (prior) return; // finished on a previous mount — render the stats only
     let seq = 0;
     const rtts: number[] = [];
     const finish = () => {
       clearInterval(iv);
       setDone(true);
+      setEggResult(id, rtts);
       const st = useStore.getState();
       if (st.job === 'ping') st.setJob(null);
     };

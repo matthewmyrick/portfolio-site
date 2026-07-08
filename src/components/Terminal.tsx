@@ -46,6 +46,12 @@ export function Terminal() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Coming back from a fullscreen app (vim/less/htop) remounts the scrollback
+  // — land at the prompt, not wherever the browser restores scroll to.
+  useEffect(() => {
+    if (!overlay) bottomRef.current?.scrollIntoView({ block: 'end' });
+  }, [overlay]);
+
   // Group consecutive lines by their command group (used for Warp blocks).
   const groups = useMemo(() => {
     const out: { group: number; items: Line[] }[] = [];

@@ -23,6 +23,7 @@ import { PacmanInstall } from './components/eggs/Pacman';
 import { Ping } from './components/eggs/Ping';
 import { Parrot } from './components/eggs/Parrot';
 import { RmRf } from './components/eggs/RmRf';
+import { eggId } from './components/eggs/cache';
 import { shell, resetShellSession, applyRcLine } from './lib/shell';
 import {
   cluster,
@@ -37,7 +38,8 @@ import {
   crashLogs,
   describeCrashPod,
   parseManifestLimit,
-  DEPLOY_MANIFEST
+  deployManifest,
+  describeDeployment
 } from './lib/cluster';
 
 export interface Ctx {
@@ -511,6 +513,8 @@ const KUBECTL_USAGE = [
   '  kubectl get events                recent cluster events',
   '  kubectl logs <pod>                container logs',
   '  kubectl describe pod <pod>        everything about a pod',
+  '  kubectl describe deployment portfolio-web   current limits + conditions',
+  '  kubectl get deployment portfolio-web -o yaml',
   '  kubectl delete pod <pod>          (see what happens)',
   '  kubectl edit deployment portfolio-web',
   '  kubectl set resources deployment portfolio-web --limits=memory=256Mi',
@@ -874,7 +878,7 @@ export const COMMANDS: Record<string, Command> = {
       ],
       seeAlso: ['vim', 'htop', 'ssh']
     },
-    run: ({ args, rest }) => {
+    run: ({ args, flags, rest }) => {
       touchCluster();
       const sub = (args[0] ?? '').toLowerCase();
       const podNames = pods().map((p) => p.name);
@@ -890,6 +894,19 @@ export const COMMANDS: Record<string, Command> = {
             return maybeCelebrate();
           }
           if (['deployments', 'deployment', 'deploy'].includes(what)) {
+            // kubectl get deployment portfolio-web -o yaml — the full manifest,
+            // including the CURRENT memory limit.
+            if (flags.o && args.some((a) => a.toLowerCase() === 'yaml')) {
+              return print(
+                <div className="whitespace-pre-wrap">
+                  {deployManifest().map((l, i) => (
+                    <div key={i} className={/memory:/.test(l) ? 't-yellow' : ''}>
+                      {l}
+                    </div>
+                  ))}
+                </div>
+              );
+            }
             const ready = clusterPhase() === 'healthy' ? '2/2' : '1/2';
             print(
               <div className="whitespace-pre">
@@ -958,6 +975,34 @@ export const COMMANDS: Record<string, Command> = {
         }
 
         case 'describe': {
+          // kubectl describe deployment portfolio-web — shows the current
+          // memory limit and rollout conditions.
+          if ((args[1] ?? '').toLowerCase().startsWith('deploy')) {
+            if (!/portfolio-web/i.test(rest)) {
+              return printErr('usage: kubectl describe deployment portfolio-web');
+            }
+            const healthy = clusterPhase() === 'healthy';
+            return print(
+              <div className="whitespace-pre-wrap">
+                {describeDeployment(healthy)
+                  .split('\n')
+                  .map((l, i) => (
+                    <div
+                      key={i}
+                      className={
+                        /here is your problem|False/.test(l)
+                          ? 't-red'
+                          : /memory:|True/.test(l)
+                            ? 't-yellow'
+                            : ''
+                      }
+                    >
+                      {l}
+                    </div>
+                  ))}
+              </div>
+            );
+          }
           const pod = args[2] ?? args[1];
           if (!pod || pod === 'pod') return printErr('usage: kubectl describe pod <name>');
           if (!podNames.includes(pod)) return notFound(pod);
@@ -1045,7 +1090,7 @@ export const COMMANDS: Record<string, Command> = {
           const path = `/tmp/kubectl-edit-${cluster.suffix}.yaml`;
           return openVim({
             path,
-            lines: [...DEPLOY_MANIFEST],
+            lines: deployManifest(),
             newFile: true,
             onWrite: (content) => {
               const mi = parseManifestLimit(content);
@@ -1187,9 +1232,11 @@ export const COMMANDS: Record<string, Command> = {
       const nukeTargets = ['/', '/*', '~', '~/', '/home', '/home/visitor'];
       if (flags.r && flags.f && nukeTargets.includes(target)) {
         S().setJob('rmrf');
-        return print(<RmRf onReboot={() => startSession()} />);
+        return print(<RmRf id={eggId('rmrf')} onReboot={() => startSession()} />);
       }
-      if (!args.length) return printErr('rm: missing operand');
+      if (!args.length) {
+        return printErr("rm: missing operand — if you're feeling brave: rm -rf /");
+      }
       printErr(`rm: cannot remove '${args[0]}': Read-only file system (nice try)`);
     }
   },
@@ -1215,7 +1262,7 @@ export const COMMANDS: Record<string, Command> = {
         .toLowerCase();
       if (url === 'parrot.live') {
         S().setJob('parrot');
-        return print(<Parrot />);
+        return print(<Parrot id={eggId('parrot')} />);
       }
       if (url === 'matthewjmyrick.com' || url === 'www.matthewjmyrick.com') {
         return print(
@@ -1263,7 +1310,7 @@ export const COMMANDS: Record<string, Command> = {
       const target = known[host];
       if (!target) return printErr(`ping: ${host}: Name or service not known`);
       S().setJob('ping');
-      print(<Ping host={host} ip={target.ip} local={target.local} />);
+      print(<Ping id={eggId('ping')} host={host} ip={target.ip} local={target.local} />);
     }
   },
 
@@ -1284,12 +1331,12 @@ export const COMMANDS: Record<string, Command> = {
     run: ({ args, flags }) => {
       if (flags.S && flags.y && flags.u) {
         S().setJob('pacman');
-        return print(<PacmanInstall pkg="" update />);
+        return print(<PacmanInstall id={eggId('pacman')} pkg="" update />);
       }
       if (flags.S) {
         if (!args.length) return printErr('error: no targets specified (use -h for help)');
         S().setJob('pacman');
-        return print(<PacmanInstall pkg={args[0]} />);
+        return print(<PacmanInstall id={eggId('pacman')} pkg={args[0]} />);
       }
       print(
         <div className="whitespace-pre-wrap">
@@ -1316,7 +1363,7 @@ export const COMMANDS: Record<string, Command> = {
     },
     run: () => {
       S().setJob('sl');
-      print(<SlTrain />);
+      print(<SlTrain id={eggId('sl')} />);
     }
   },
 

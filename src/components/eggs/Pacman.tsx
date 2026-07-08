@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../store';
+import { eggResult, setEggResult } from './cache';
 
 // Fake `pacman -S <pkg>` — we ARE on an Arch wallpaper, after all.
 // Time-based staged output with an animated progress bar, then the point.
@@ -11,19 +12,28 @@ function bar(pct: number): string {
   return `[${'#'.repeat(filled)}${'-'.repeat(BAR_W - filled)}] ${String(Math.round(pct)).padStart(3)}%`;
 }
 
-export function PacmanInstall({ pkg, update }: { pkg: string; update?: boolean }) {
-  const [t, setT] = useState(0);
-  const [cancelled, setCancelled] = useState(false);
+interface PacmanEnd {
+  t: number;
+  cancelled: boolean;
+}
+
+export function PacmanInstall({ id, pkg, update }: { id: string; pkg: string; update?: boolean }) {
+  const prior = eggResult<PacmanEnd>(id);
+  const [t, setT] = useState(prior?.t ?? 0);
+  const [cancelled, setCancelled] = useState(prior?.cancelled ?? false);
   const doneRef = useRef(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const TOTAL = update ? 2600 : 3600;
 
   useEffect(() => {
+    if (prior) return; // finished on a previous mount — render the ending only
     const start = Date.now();
-    const finish = () => {
+    let latest = 0;
+    const finish = (wasCancelled: boolean) => {
       clearInterval(iv);
       doneRef.current = true;
+      setEggResult(id, { t: wasCancelled ? latest : TOTAL, cancelled: wasCancelled });
       const st = useStore.getState();
       if (st.job === 'pacman') st.setJob(null);
     };
@@ -31,11 +41,11 @@ export function PacmanInstall({ pkg, update }: { pkg: string; update?: boolean }
       if (useStore.getState().job !== 'pacman') {
         // Ctrl+C — pacman prints its cancellation line.
         if (!doneRef.current) setCancelled(true);
-        return finish();
+        return finish(true);
       }
-      const el = Date.now() - start;
-      setT(el);
-      if (el >= TOTAL) finish();
+      latest = Date.now() - start;
+      setT(latest);
+      if (latest >= TOTAL) finish(false);
     }, 50);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
