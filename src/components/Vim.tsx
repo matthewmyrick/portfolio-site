@@ -449,6 +449,8 @@ export function Vim() {
       clearCount();
     };
 
+    let lastJ = 0; // for the classic `jj` quick-escape
+
     const insertKey = (e: globalThis.KeyboardEvent) => {
       const line = st.lines[st.row];
       if (e.key === 'Escape') {
@@ -456,6 +458,20 @@ export function Vim() {
         st.col = Math.max(0, st.col - 1);
         clampCol();
         return;
+      }
+      // `jj` typed quickly leaves insert mode (undoing the first j) — for
+      // vim muscle memory, and for browsers where an extension eats Esc.
+      if (e.key === 'j') {
+        const now = Date.now();
+        if (now - lastJ < 400 && st.col > 0 && line[st.col - 1] === 'j') {
+          st.lines[st.row] = line.slice(0, st.col - 1) + line.slice(st.col);
+          st.col--;
+          lastJ = 0;
+          return toNormal();
+        }
+        lastJ = now;
+      } else {
+        lastJ = 0;
       }
       if (e.key === 'Enter') {
         st.lines.splice(st.row, 1, line.slice(0, st.col), line.slice(st.col));
@@ -516,17 +532,21 @@ export function Vim() {
       if (e.key.length === 1) st.cmdline += e.key;
     };
 
+    const toNormal = () => {
+      if (st.mode === 'insert') st.col = Math.max(0, st.col - 1);
+      st.mode = 'normal';
+      st.cmdline = '';
+      clampCol();
+    };
+
     const onKey = (e: globalThis.KeyboardEvent) => {
-      // Leave browser shortcuts alone — except Ctrl+[ which is Escape in vim.
+      // Leave browser shortcuts alone — except Ctrl+[ / Ctrl+C, vim's other escapes.
       if (e.metaKey || e.altKey) return;
       if (/^F\d+$/.test(e.key)) return; // F5 / F12 etc. stay with the browser
       if (e.ctrlKey) {
-        if (e.key === '[') {
+        if (e.key === '[' || e.key === 'c' || e.key === 'C') {
           e.preventDefault();
-          if (st.mode === 'insert' || st.mode === 'cmdline') {
-            st.mode = 'normal';
-            st.cmdline = '';
-          }
+          if (st.mode !== 'normal') toNormal();
           bump();
         }
         return;
@@ -546,8 +566,21 @@ export function Vim() {
       bump();
     };
 
+    // Fallback: shortcut extensions (Vimium & co) eat the Escape KEYDOWN to
+    // "leave" the focused input, but the keyup usually still gets through.
+    const onKeyUp = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape' && st.mode !== 'normal') {
+        toNormal();
+        bump();
+      }
+    };
+
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    window.addEventListener('keyup', onKeyUp, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('keyup', onKeyUp, true);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -644,7 +677,10 @@ export function Vim() {
             <span className="mm-cursor"> </span>
           </span>
         ) : st.mode === 'insert' ? (
-          <span className="font-bold">-- INSERT --</span>
+          <span>
+            <span className="font-bold">-- INSERT --</span>
+            <span className="t-dim"> (Esc, jj, or Ctrl+C to leave)</span>
+          </span>
         ) : (
           <span className="whitespace-pre-wrap">{st.message}</span>
         )}
