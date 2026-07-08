@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: Letter; margin: 0.35in 0.5in; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Calibri", "Helvetica Neue", Arial, sans-serif;
+    font-size: 9.0pt;
+    line-height: 1.15;
+    color: #222;
+    margin: 0;
+  }
+  .name {
+    text-align: center;
+    font-size: 21pt;
+    font-weight: 700;
+    color: #1F3A5F;
+    margin: 0 0 2px 0;
+    letter-spacing: 0.3px;
+  }
+  .contact { text-align: center; font-size: 9pt; color: #333; }
+  .section {
+    text-transform: uppercase;
+    font-weight: 700;
+    font-size: 10.3pt;
+    color: #1F3A5F;
+    border-bottom: 1px solid #1F3A5F;
+    margin: 6px 0 2px 0;
+    padding-bottom: 1px;
+    letter-spacing: 0.5px;
+  }
+  .job { margin-top: 4px; display: flex; justify-content: space-between; align-items: baseline; }
+  .job .company { font-weight: 700; font-size: 10.3pt; }
+  .job .yc { font-weight: 600; font-size: 9pt; color: #555; margin-left: 5px; }
+  .job .loc { font-size: 9.3pt; color: #333; margin-left: 6px; }
+  .job .dates { font-weight: 700; font-size: 9.3pt; white-space: nowrap; }
+  .role { font-style: italic; font-weight: 700; font-size: 9.3pt; margin-top: 1px; }
+  ul { margin: 1px 0 0 0; padding-left: 15px; }
+  li { margin-bottom: 1.5px; }
+  .line { margin-top: 1px; }
+  .skills p { margin: 2px 0; }
+  .label { font-weight: 700; }
+  .sub { font-weight: 700; font-style: italic; }
+  a { color: #1F3A5F; text-decoration: none; }
+</style>
+</head>
+<body>
+  <div class="name">Matthew Myrick</div>
+  <div class="contact">New York, NY 10003&nbsp; | &nbsp;(408) 390-5085&nbsp; | &nbsp;MatthewMyrick2@gmail.com</div>
+  <div class="contact">linkedin.com/in/mattmyrick&nbsp; | &nbsp;github.com/matthewmyrick&nbsp; | &nbsp;matthewjmyrick.com (self-hosted from home lab)</div>
+
+  <div class="section">Work Experience</div>
+
+  <div class="job"><div><span class="company">Hadrius AI</span><span class="yc">(Y Combinator)</span><span class="loc">New York, NY</span></div><div class="dates">Nov 2025 to Present</div></div>
+  <div class="role">Founding Lead Senior Site Reliability Engineer</div>
+  <ul>
+    <li>As the sole infrastructure engineer at a Series A company, own the end-to-end stack across a 600+ node and container fleet, sustaining a 99.9% SLA uptime target; apply deep Postgres internals expertise (autovacuum tuning, RDS Proxy, connection lifecycle) for proactive performance tuning and stabilization.</li>
+    <li>Engineered zero-downtime deployments with NGINX ingress controllers and HAProxy least-connections load balancing for the main web/API, plus blue/green rollout and rollback on Kubernetes and ArgoCD, eliminating deploy-driven outages and in-flight job loss.</li>
+    <li>Migrated the entire worker fleet off AWS ASGs onto EKS with per-queue NodePools, KEDA and Karpenter autoscaling via declarative manifests, enabling per-queue scaling and single-operator management at 600+ nodes.</li>
+    <li>Architected and operate large-scale AI classification job pipelines on Kubernetes, migrating orchestration from Procrastinate to self-hosted Prefect for durable, autoscaled batch inference across the worker fleet.</li>
+    <li>Built and self-host a Grafana + Loki + Alloy observability stack with an alert taxonomy routing pod-level events to Slack, Sentry, and CloudWatch.</li>
+    <li>Built internal and client-facing MCP servers in Go for AI-assisted Sentry triage and infrastructure alert investigation; led full Terraform IaC migration, multi-region EU/GDPR buildout, and SOC 2 / Vanta compliance.</li>
+  </ul>
+
+  <div class="job"><div><span class="company">Anheuser-Busch</span><span class="loc">New York, NY</span></div><div class="dates">Feb 2023 to Nov 2025</div></div>
+  <div class="role">Senior Platforms Engineer, SRE Lead</div>
+  <ul>
+    <li>Led a team of 8 engineers, driving SRE and platform reliability initiatives across the organization.</li>
+    <li>Enhanced the OTEL collector service to channel APM metrics and logs into Datadog, and built dashboards and alerts for full visibility into our services.</li>
+    <li>Managed, deployed, and supported Kubernetes across multiple environments, ensuring high availability, scalability, and security of containerized applications.</li>
+  </ul>
+  <div class="role">Senior Platforms Engineer</div>
+  <ul>
+    <li>Refactored the documentation website for centralized management with Docusaurus, Kubernetes, and SSO; presented the new web app to engineers globally at a hackathon, taking first place.</li>
+    <li>Developed and released a platforms API service for remote management of sensitive environment variables for our Swift iOS mobile application, plus AuthN/AuthZ API services using Azure AAD and B2C for external and internal users.</li>
+  </ul>
+  <div class="role">Platforms Engineer</div>
+  <ul>
+    <li>Led migration of three services to Infrastructure as Code (Terraform), improving security and monitoring; implemented CI/CD best-practice standards across the organization and developed automation for key monitoring, GitHub repos, and infrastructure.</li>
+  </ul>
+
+  <div class="job"><div><span class="company">Capgemini SE</span><span class="loc">New York, NY</span></div><div class="dates">Jan 2022 to Feb 2023</div></div>
+  <div class="role">Software Engineer, NBCUniversal</div>
+  <ul>
+    <li>Built and maintained an internal, production pricing application in .NET (C#) used by NBCUniversal business teams.</li>
+    <li>Assisted in migrating CI/CD pipelines for 400+ applications from on-prem UBuild/UDeploy to cloud GitHub Actions using Bash, PowerShell, Python, and Java.</li>
+    <li>Automated GitHub/TFS on-prem to cloud lift &amp; shift totaling 4,500 repositories while preserving Git/TFS workflows.</li>
+  </ul>
+
+  <div class="section">Projects</div>
+  <ul>
+    <li><span class="sub">azure-searcher</span>: Go terminal UI (TUI) for browsing Azure resources with parallel goroutine fetching, smart caching, and fast search.</li>
+    <li><span class="sub">catch-pokemon</span>: Terminal Pokémon catching game (Rust) with weighted encounters, animated ASCII art, and cryptographically signed save storage.</li>
+    <li><span class="sub">git-diffs</span>: Go terminal UI (TUI) for reviewing git diffs between branches with a GitHub-style side-by-side view, syntax highlighting, and fuzzy search.</li>
+    <li><span class="sub">portfolio-site</span>: Interactive terminal-style portfolio (React / TypeScript / Vite) powering matthewjmyrick.com, self-hosted from my home lab.</li>
+  </ul>
+
+  <div class="section">Skills</div>
+  <div class="skills">
+    <p><span class="label">Languages</span> &nbsp;&middot;&nbsp; <span class="label">Proficient:</span> Terraform, Python, Go, Bash/Shell, JavaScript, SQL &nbsp;&middot;&nbsp; <span class="label">Familiar:</span> Zig, C, C#, Java</p>
+    <p><span class="label">Technologies</span> &nbsp;&middot;&nbsp; <span class="label">Proficient:</span> Linux, Azure, AWS, Kubernetes, PostgreSQL, NGINX, HAProxy, GitHub Actions, Grafana Stack, Datadog, KEDA, Karpenter, Prefect, Procrastinate, Kafka, Tailscale &nbsp;&middot;&nbsp; <span class="label">Familiar:</span> GCP, OTEL, MongoDB</p>
+  </div>
+
+  <div class="section">Education</div>
+  <div class="job"><div><span class="company">Marquette University</span><span class="loc">Milwaukee, WI</span></div><div class="dates">Dec 2021</div></div>
+  <div class="line">B.S. in Business Administration: Majors in Information Systems, Finance &amp; Minor in Computer Science</div>
+</body>
+</html>

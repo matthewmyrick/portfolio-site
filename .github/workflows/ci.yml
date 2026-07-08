@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  guard:
+    name: No private files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail if local-only infra files are tracked
+        run: |
+          BAD=$(git ls-files | grep -E '^(\.env|APOLLO_SSH\.md|deploy\.sh|docker-compose\.yml|AGENTS\.md|CLAUDE\.md|resume\.md)$' || true)
+          if [ -n "$BAD" ]; then
+            echo "Private/local-only files must not be committed:"
+            echo "$BAD"
+            exit 1
+          fi
+
+  checks:
+    name: Lint, typecheck, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Sanity-check build output
+        run: |
+          test -f build/index.html
+          grep -q '<div id="root">' build/index.html

@@ -1,0 +1,17 @@
+node_modules
+build
+dist
+.DS_Store
+*.local
+.vite
+.env
+.env.example
+
+# Local-only infra/deploy docs & scripts — architecture stays private
+APOLLO_SSH.md
+resume.md
+AGENTS.md
+CLAUDE.md
+deploy.sh
+docker-compose.yml
+.claude/
