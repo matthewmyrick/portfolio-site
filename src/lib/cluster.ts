@@ -212,34 +212,66 @@ export function describeCrashPod(): string {
   ].join('\n');
 }
 
-export const DEPLOY_MANIFEST = [
-  'apiVersion: apps/v1',
-  'kind: Deployment',
-  'metadata:',
-  '  name: portfolio-web',
-  '  namespace: default',
-  'spec:',
-  '  replicas: 2',
-  '  selector:',
-  '    matchLabels:',
-  '      app: portfolio-web',
-  '  template:',
-  '    metadata:',
-  '      labels:',
-  '        app: portfolio-web',
-  '    spec:',
-  '      containers:',
-  '        - name: web',
-  '          image: registry.local/portfolio-web:2.4.1',
-  '          ports:',
-  '            - containerPort: 80',
-  '          resources:',
-  '            requests:',
-  '              cpu: 100m',
-  '              memory: 32Mi',
-  '            limits:',
-  '              memory: 64Mi'
-];
+// Manifest reflects the CURRENT limit — edit it again and you see your change.
+export function deployManifest(): string[] {
+  return [
+    'apiVersion: apps/v1',
+    'kind: Deployment',
+    'metadata:',
+    '  name: portfolio-web',
+    '  namespace: default',
+    'spec:',
+    '  replicas: 2',
+    '  selector:',
+    '    matchLabels:',
+    '      app: portfolio-web',
+    '  template:',
+    '    metadata:',
+    '      labels:',
+    '        app: portfolio-web',
+    '    spec:',
+    '      containers:',
+    '        - name: web',
+    '          image: registry.local/portfolio-web:2.4.1',
+    '          ports:',
+    '            - containerPort: 80',
+    '          resources:',
+    '            requests:',
+    '              cpu: 100m',
+    '              memory: 32Mi',
+    '            limits:',
+    `              memory: ${cluster.memLimitMi}Mi`
+  ];
+}
+
+export function describeDeployment(healthy: boolean): string {
+  return [
+    'Name:                   portfolio-web',
+    'Namespace:              default',
+    'Replicas:               2 desired | 2 updated | ' +
+      (healthy ? '2 available' : '1 available | 1 unavailable'),
+    'StrategyType:           RollingUpdate',
+    'Pod Template:',
+    '  Containers:',
+    '   web:',
+    '    Image:      registry.local/portfolio-web:2.4.1',
+    '    Port:       80/TCP',
+    '    Limits:',
+    `      memory:  ${cluster.memLimitMi}Mi` + (healthy ? '' : '        <-- here is your problem'),
+    '    Requests:',
+    '      cpu:      100m',
+    '      memory:   32Mi',
+    'Conditions:',
+    '  Type           Status  Reason',
+    '  ----           ------  ------',
+    healthy
+      ? '  Available      True    MinimumReplicasAvailable'
+      : '  Available      False   MinimumReplicasUnavailable',
+    healthy
+      ? '  Progressing    True    NewReplicaSetAvailable'
+      : '  Progressing    False   ProgressDeadlineExceeded'
+  ].join('\n');
+}
 
 // Pull the limits.memory value out of an edited manifest (last memory under limits).
 export function parseManifestLimit(content: string): number | null {

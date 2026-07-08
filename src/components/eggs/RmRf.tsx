@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../store';
 import { walkFiles, HOME } from '../../lib/fsops';
+import { eggResult, setEggResult } from './cache';
 
 // `rm -rf /` — a harmless, heart-stopping meltdown: files stream by,
 // the screen glitches, the kernel panics, and the session "reboots".
@@ -37,9 +38,15 @@ const PANIC = [
 
 type Phase = 'deleting' | 'panic' | 'reboot' | 'cancelled';
 
-export function RmRf({ onReboot }: { onReboot: () => void }) {
-  const [n, setN] = useState(0); // how many doomed paths shown
-  const [phase, setPhase] = useState<Phase>('deleting');
+interface RmEnd {
+  n: number;
+  phase: Phase;
+}
+
+export function RmRf({ id, onReboot }: { id: string; onReboot: () => void }) {
+  const prior = eggResult<RmEnd>(id);
+  const [n, setN] = useState(prior?.n ?? 0); // how many doomed paths shown
+  const [phase, setPhase] = useState<Phase>(prior?.phase ?? 'deleting');
   const [countdown, setCountdown] = useState(3);
   const wrapRef = useRef<HTMLDivElement>(null);
   const doomed = useRef<string[]>([]);
@@ -50,12 +57,14 @@ export function RmRf({ onReboot }: { onReboot: () => void }) {
   }
 
   useEffect(() => {
+    if (prior) return; // already ended on a previous mount — static ending only
     const timers: ReturnType<typeof setTimeout>[] = [];
     let i = 0;
     const iv = setInterval(() => {
       if (useStore.getState().job !== 'rmrf') {
         clearInterval(iv);
         setPhase('cancelled');
+        setEggResult(id, { n: Math.min(i, doomed.current.length), phase: 'cancelled' });
         return;
       }
       i += 1 + Math.floor(Math.random() * 2);

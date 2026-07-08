@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from 'react';
+import { useEffect, useReducer, useRef, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { displayPath, writeFile } from '../lib/fsops';
 
@@ -38,8 +38,89 @@ interface EditorState {
   message: string;
   modified: boolean;
   pendingKey: '' | 'd' | 'y' | 'g';
+  count: string; // count prefix in NORMAL mode: 5j, 3x, 2dd, 10G
   yank: string[] | null; // line-wise register (dd / yy)
   undo: Snap[];
+}
+
+// ---- lightweight syntax highlighting (markdown + yaml, by extension) -------
+
+function hlInlineMd(text: string): ReactNode {
+  // `code` spans and URLs, everything else as-is.
+  const parts = text.split(/(`[^`]+`|https?:\/\/\S+)/g);
+  if (parts.length === 1) return text || ' ';
+  return parts.map((p, i) =>
+    p.startsWith('`') ? (
+      <span key={i} className="t-yellow">
+        {p}
+      </span>
+    ) : /^https?:\/\//.test(p) ? (
+      <span key={i} className="t-cyan">
+        {p}
+      </span>
+    ) : (
+      p
+    )
+  );
+}
+
+function hlMdLine(line: string): ReactNode {
+  if (/^#{1,6}\s/.test(line)) return <span className="t-accent font-bold">{line}</span>;
+  if (/^```/.test(line)) return <span className="t-yellow">{line}</span>;
+  if (/^>/.test(line)) return <span className="t-dim italic">{line}</span>;
+  const bullet = line.match(/^(\s*(?:[-*+]|\d+\.)\s)(.*)$/);
+  if (bullet) {
+    return (
+      <>
+        <span className="t-cyan">{bullet[1]}</span>
+        {hlInlineMd(bullet[2])}
+      </>
+    );
+  }
+  return hlInlineMd(line);
+}
+
+function hlYamlLine(line: string): ReactNode {
+  if (/^\s*#/.test(line)) return <span className="t-dim">{line}</span>;
+  const kv = line.match(/^(\s*-?\s*)([\w.-]+)(:)(.*)$/);
+  if (!kv) {
+    // list item of scalars: "- value"
+    const li = line.match(/^(\s*-\s)(.*)$/);
+    if (li) {
+      return (
+        <>
+          <span className="t-dim">{li[1]}</span>
+          {li[2]}
+        </>
+      );
+    }
+    return line || ' ';
+  }
+  const value = kv[4];
+  const valueNode = /^\s*-?\d+(\.\d+)?(Mi|Gi|Ki|m)?\s*(#.*)?$/.test(value) ? (
+    <span className="t-yellow">{value}</span>
+  ) : /["']/.test(value) ? (
+    <span className="t-string">{value}</span>
+  ) : (
+    <span>{value}</span>
+  );
+  return (
+    <>
+      {kv[1]}
+      <span className="t-cyan">{kv[2]}</span>
+      <span className="t-dim">{kv[3]}</span>
+      {valueNode}
+    </>
+  );
+}
+
+// Highlight a buffer line by file extension. The cursor line renders plain
+// (the cursor split takes priority); everything else gets colors.
+function hlBufferLine(path: string | null, line: string): ReactNode {
+  if (!path) return line || ' ';
+  if (/\.ya?ml$/i.test(path)) return hlYamlLine(line);
+  if (/\.(md|markdown)$/i.test(path)) return hlMdLine(line);
+  return line || ' ';
 }
 
 const isWordCh = (c: string | undefined) => !!c && /\S/.test(c);
@@ -90,6 +171,7 @@ export function Vim() {
       : `"${file.path ? displayPath(file.path) : '[No Name]'}" ${file.lines.length}L, ${file.lines.join('\n').length + 1}C`,
     modified: false,
     pendingKey: '',
+    count: '',
     yank: null,
     undo: []
   }).current;
@@ -165,55 +247,68 @@ export function Vim() {
     const normalKey = (key: string) => {
       const line = () => st.lines[st.row];
 
+      // Count prefix: digits accumulate (5j, 3x, 2dd, 10G). A bare 0 is the
+      // line-start motion, but 10 works because the 1 came first.
+      if (!st.pendingKey && /^[0-9]$/.test(key) && !(key === '0' && st.count === '')) {
+        st.count = (st.count + key).slice(0, 4);
+        return;
+      }
+      const reps = Math.max(1, parseInt(st.count || '1', 10));
+      const clearCount = () => {
+        st.count = '';
+      };
+
       // Two-key sequences: dd / yy / gg.
       if (st.pendingKey) {
         const pk = st.pendingKey;
         st.pendingKey = '';
         if (pk === 'd' && key === 'd') {
           snap();
-          st.yank = [line()];
-          st.lines.splice(st.row, 1);
+          st.yank = st.lines.slice(st.row, st.row + reps);
+          st.lines.splice(st.row, reps);
           if (st.lines.length === 0) st.lines = [''];
           if (st.row >= st.lines.length) st.row = st.lines.length - 1;
           clampCol();
           st.modified = true;
-          return;
+          if (reps > 1) st.message = `${st.yank.length} fewer lines`;
+          return clearCount();
         }
         if (pk === 'y' && key === 'y') {
-          st.yank = [line()];
-          st.message = '1 line yanked';
-          return;
+          st.yank = st.lines.slice(st.row, st.row + reps);
+          st.message = st.yank.length === 1 ? '1 line yanked' : `${st.yank.length} lines yanked`;
+          return clearCount();
         }
         if (pk === 'g' && key === 'g') {
-          st.row = 0;
-          st.col = 0;
-          return;
+          // [count]gg goes to that line, bare gg to the top.
+          st.row = st.count ? Math.min(reps - 1, st.lines.length - 1) : 0;
+          clampCol();
+          return clearCount();
         }
-        return; // unrecognized sequence — drop it
+        return clearCount(); // unrecognized sequence — drop it
       }
 
       switch (key) {
         case 'h':
         case 'ArrowLeft':
         case 'Backspace':
-          st.col = Math.max(0, st.col - 1);
+          st.col = Math.max(0, st.col - reps);
           break;
         case 'l':
         case 'ArrowRight':
-          st.col = Math.min(Math.max(0, line().length - 1), st.col + 1);
+          st.col = Math.min(Math.max(0, line().length - 1), st.col + reps);
           break;
         case 'j':
         case 'ArrowDown':
-          st.row = Math.min(st.lines.length - 1, st.row + 1);
+          st.row = Math.min(st.lines.length - 1, st.row + reps);
           clampCol();
           break;
         case 'k':
         case 'ArrowUp':
-          st.row = Math.max(0, st.row - 1);
+          st.row = Math.max(0, st.row - reps);
           clampCol();
           break;
         case 'Enter':
-          st.row = Math.min(st.lines.length - 1, st.row + 1);
+          st.row = Math.min(st.lines.length - 1, st.row + reps);
           st.col = 0;
           break;
         case '0':
@@ -223,30 +318,35 @@ export function Vim() {
           st.col = Math.max(0, line().length - 1);
           break;
         case 'w': {
-          const p = nextWord(st.lines, st.row, st.col);
-          st.row = p.row;
-          st.col = p.col;
+          for (let r = 0; r < reps; r++) {
+            const p = nextWord(st.lines, st.row, st.col);
+            st.row = p.row;
+            st.col = p.col;
+          }
           break;
         }
         case 'b': {
-          const p = prevWord(st.lines, st.row, st.col);
-          st.row = p.row;
-          st.col = p.col;
+          for (let r = 0; r < reps; r++) {
+            const p = prevWord(st.lines, st.row, st.col);
+            st.row = p.row;
+            st.col = p.col;
+          }
           break;
         }
         case 'G':
-          st.row = st.lines.length - 1;
+          // [count]G goes to that line, bare G to the bottom.
+          st.row = st.count ? Math.min(reps - 1, st.lines.length - 1) : st.lines.length - 1;
           clampCol();
           break;
         case 'g':
         case 'd':
         case 'y':
           st.pendingKey = key;
-          break;
+          return; // keep the count for 2dd / 3yy
         case 'x':
           if (line().length > 0) {
             snap();
-            st.lines[st.row] = line().slice(0, st.col) + line().slice(st.col + 1);
+            st.lines[st.row] = line().slice(0, st.col) + line().slice(st.col + reps);
             clampCol();
             st.modified = true;
           }
@@ -315,6 +415,7 @@ export function Vim() {
           st.message = '';
           break;
       }
+      clearCount();
     };
 
     const insertKey = (e: globalThis.KeyboardEvent) => {
@@ -402,8 +503,10 @@ export function Vim() {
       e.preventDefault();
       e.stopPropagation();
       if (st.mode === 'normal') {
-        if (e.key === 'Escape') st.pendingKey = '';
-        else normalKey(e.key);
+        if (e.key === 'Escape') {
+          st.pendingKey = '';
+          st.count = '';
+        } else normalKey(e.key);
       } else if (st.mode === 'insert') {
         insertKey(e);
       } else {
@@ -442,7 +545,7 @@ export function Vim() {
                     {line.slice(st.col + 1)}
                   </>
                 ) : (
-                  line || ' '
+                  hlBufferLine(file.path, line)
                 )}
               </span>
             </div>
@@ -469,8 +572,8 @@ export function Vim() {
         </span>
       </div>
 
-      {/* cmdline / mode / message row */}
-      <div className="h-6 px-2">
+      {/* cmdline / mode / message row (+ showcmd: pending count/operator) */}
+      <div className="flex h-6 justify-between px-2">
         {st.mode === 'cmdline' ? (
           <span>
             :{st.cmdline}
@@ -480,6 +583,12 @@ export function Vim() {
           <span className="font-bold">-- INSERT --</span>
         ) : (
           <span className="whitespace-pre-wrap">{st.message}</span>
+        )}
+        {st.mode === 'normal' && (st.count || st.pendingKey) && (
+          <span className="t-yellow">
+            {st.count}
+            {st.pendingKey}
+          </span>
         )}
       </div>
     </div>
