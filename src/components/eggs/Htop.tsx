@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef } from 'react';
 import { useStore } from '../../store';
+import { KeyboardFocus } from '../KeyboardFocus';
 
 // Fake htop: a fullscreen, gently-jittering process monitor whose workload
 // is emotionally accurate. q / Esc quits.
@@ -142,6 +143,7 @@ export function Htop() {
 
   return (
     <div className="flex h-full flex-col text-[13px] leading-relaxed sm:text-sm">
+      <KeyboardFocus />
       <div className="px-1 py-1">
         <Meter label="CPU" pct={cpuTotal} text={`${cpuTotal.toFixed(1)}%`} />
         <Meter label="Mem" pct={memPct} text={`5.1G/8.00G`} />

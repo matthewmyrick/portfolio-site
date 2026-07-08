@@ -1,5 +1,12 @@
-import { useEffect, useReducer, useRef, type ReactNode } from 'react';
+import {
+  useEffect,
+  useReducer,
+  useRef,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode
+} from 'react';
 import { useStore } from '../store';
+import { KeyboardFocus } from './KeyboardFocus';
 import { displayPath, writeFile } from '../lib/fsops';
 
 // A small modal editor in the spirit of vim: NORMAL / INSERT modes, hjkl and
@@ -548,20 +555,43 @@ export function Vim() {
   const gutterW = String(st.lines.length).length;
   const tildes = Math.max(0, 14 - st.lines.length);
 
+  // Click-to-position (like gvim): estimate the column from the x offset —
+  // the font is monospace, so chars are a fixed width (measured off a probe).
+  const probeRef = useRef<HTMLSpanElement>(null);
+  const clickLine = (i: number, e: ReactMouseEvent<HTMLDivElement>) => {
+    const content = e.currentTarget.querySelector<HTMLElement>('[data-buf]');
+    const charW = probeRef.current?.getBoundingClientRect().width || 8;
+    const rect = content?.getBoundingClientRect();
+    const col = rect ? Math.round((e.clientX - rect.left) / charW) : 0;
+    st.row = i;
+    const max = Math.max(0, st.lines[i].length - (st.mode === 'insert' ? 0 : 1));
+    st.col = Math.max(0, Math.min(col, max));
+    bump();
+  };
+
   return (
     <div className="flex h-full flex-col" data-tick={tick}>
+      <KeyboardFocus />
       {/* buffer */}
       <div className="min-h-0 flex-1 overflow-y-auto px-1 py-1 whitespace-pre">
+        <span ref={probeRef} className="invisible absolute">
+          M
+        </span>
         {st.lines.map((line, i) => {
           const cur = i === st.row;
           return (
-            <div key={i} ref={cur ? cursorRef : undefined} className="flex">
+            <div
+              key={i}
+              ref={cur ? cursorRef : undefined}
+              className="flex cursor-text"
+              onMouseDown={(e) => clickLine(i, e)}
+            >
               <span
                 className={`${cur ? 't-yellow' : 't-dim'} mr-2 shrink-0 text-right select-none`}
               >
                 {String(i + 1).padStart(gutterW)}
               </span>
-              <span className="min-w-0">
+              <span className="min-w-0" data-buf>
                 {cur ? (
                   <>
                     {line.slice(0, st.col)}

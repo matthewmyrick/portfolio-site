@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef, type ReactNode } from 'react';
 import { useStore } from '../store';
+import { KeyboardFocus } from './KeyboardFocus';
 
 // A `less`-style pager: fullscreen, line-based scrolling, `/` search with
 // n/N navigation, q to quit. Fed by `less <file>` or as a pipe sink.
@@ -205,6 +206,7 @@ export function Less() {
 
   return (
     <div className="flex h-full flex-col" data-tick={tick}>
+      <KeyboardFocus />
       <div ref={bodyRef} className="min-h-0 flex-1 overflow-hidden px-1 py-1 whitespace-pre">
         {/* invisible probe to measure one row's height */}
         <div ref={probeRef} className="invisible absolute">
