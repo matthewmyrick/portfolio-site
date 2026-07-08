@@ -14,7 +14,7 @@ export function highlightClasses(input: string, commands: Set<string>, cwd: stri
     const start = m.index;
     const end = start + text.length;
     let cls = '';
-    if (text === '|') {
+    if (text === '|' || text === '&&' || text === '||' || text === ';') {
       cls = 't-dim';
       expectCommand = true;
     } else if (expectCommand) {
