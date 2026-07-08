@@ -47,7 +47,7 @@ export function RmRf({ id, onReboot }: { id: string; onReboot: () => void }) {
   const prior = eggResult<RmEnd>(id);
   const [n, setN] = useState(prior?.n ?? 0); // how many doomed paths shown
   const [phase, setPhase] = useState<Phase>(prior?.phase ?? 'deleting');
-  const [countdown, setCountdown] = useState(3);
+  const [countdown, setCountdown] = useState(5);
   const wrapRef = useRef<HTMLDivElement>(null);
   const doomed = useRef<string[]>([]);
 
@@ -75,8 +75,9 @@ export function RmRf({ id, onReboot }: { id: string; onReboot: () => void }) {
         document.body.classList.add('mm-glitch');
         timers.push(setTimeout(() => document.body.classList.remove('mm-glitch'), 950));
         timers.push(setTimeout(() => setPhase('reboot'), 1200));
-        [3, 2, 1].forEach((c, idx) => {
-          timers.push(setTimeout(() => setCountdown(c - 1), 1200 + (idx + 1) * 700));
+        // 5-second countdown, one tick per second.
+        [5, 4, 3, 2, 1].forEach((c, idx) => {
+          timers.push(setTimeout(() => setCountdown(c - 1), 1200 + (idx + 1) * 1000));
         });
         timers.push(
           setTimeout(
@@ -88,7 +89,7 @@ export function RmRf({ id, onReboot }: { id: string; onReboot: () => void }) {
                 onReboot();
               }
             },
-            1200 + 3 * 700 + 400
+            1200 + 5 * 1000 + 300
           )
         );
       }
