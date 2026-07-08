@@ -197,6 +197,28 @@ function rickroll(): ReactNode {
   return <RickRoll />;
 }
 
+// `cat cat` — the README warned you about him (he finds power buttons).
+// ASCII stand-in until a real photo lands in static/ (then: <img src="/cat.jpg">).
+const THE_CAT = [
+  '      /\\_/\\',
+  '     ( o.o )   *finds your power button*',
+  '      > ^ <',
+  '     /|   |\\',
+  '    (_|   |_)'
+].join('\n');
+
+function catTheCat(): ReactNode {
+  return (
+    <div>
+      <pre className="t-yellow leading-tight whitespace-pre">{THE_CAT}</pre>
+      <div className="t-dim mt-1">
+        cat: cat: is a cat. (Real photo pending — he's camera-shy. If the site goes down, he found
+        the power button again.)
+      </div>
+    </div>
+  );
+}
+
 // sudo attempts this session (module-level: survives `clear` and `source`).
 let sudoAttempts = 0;
 
@@ -478,6 +500,8 @@ export const COMMANDS: Record<string, Command> = {
       args.forEach((a) => {
         const abs = resolvePath(S().cwd, a);
         const node = getNode(abs);
+        // `cat cat` — there is no file named cat, but there is a cat.
+        if (!node && a.toLowerCase() === 'cat') return print(catTheCat());
         if (!node) return printErr(`cat: ${a}: No such file or directory`);
         if (node.type === 'dir') return printErr(`cat: ${a}: Is a directory`);
         if (basename(abs) === '.env') return print(rickroll()); // gotcha
