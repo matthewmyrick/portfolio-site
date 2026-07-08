@@ -88,6 +88,7 @@ bullet(("Automated GitHub/TFS on-prem to cloud lift & shift totaling 4,500 repos
 
 # Projects
 section("Projects")
+bullet(("beagle", True, True), (": AI-first incident RCA terminal UI (Rust); Claude investigates a system from its telemetry and writes up the root cause, rendered live as a tabbed incident view.", False, False))
 bullet(("azure-searcher", True, True), (": Go terminal UI (TUI) for browsing Azure resources with parallel goroutine fetching, smart caching, and fast search.", False, False))
 bullet(("catch-pokemon", True, True), (": Terminal Pokémon catching game (Rust) with weighted encounters, animated ASCII art, and cryptographically signed save storage.", False, False))
 bullet(("git-diffs", True, True), (": Go terminal UI (TUI) for reviewing git diffs between branches with a GitHub-style side-by-side view, syntax highlighting, and fuzzy search.", False, False))
