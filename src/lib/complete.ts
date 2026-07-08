@@ -1,5 +1,9 @@
 import { resolvePath, getNode, listDir } from './fsops';
 import { COMMAND_NAMES } from '../commands';
+import { shell } from './shell';
+
+// Commands + session aliases — everything valid in command position.
+const commandNames = () => [...COMMAND_NAMES, ...shell.aliases.keys()];
 
 export interface CompleteResult {
   value: string;
@@ -30,7 +34,9 @@ export function complete(input: string, cwd: string): CompleteResult {
   const before = input.slice(0, tokenStart);
 
   if (completingCommand) {
-    const matches = [...COMMAND_NAMES].filter((n) => n.startsWith(partial.toLowerCase())).sort();
+    const matches = commandNames()
+      .filter((n) => n.startsWith(partial.toLowerCase()))
+      .sort();
     if (!matches.length) return unchanged;
     if (matches.length === 1) {
       const value = matches[0] + ' ';
@@ -81,7 +87,9 @@ export function suggest(input: string, cwd: string): string | null {
   const tokens = seg.split(/\s+/);
   if (tokens.length === 1) {
     const partial = tokens[0].toLowerCase();
-    const match = [...COMMAND_NAMES].sort().find((n) => n.startsWith(partial) && n !== partial);
+    const match = commandNames()
+      .sort()
+      .find((n) => n.startsWith(partial) && n !== partial);
     return match ? prefix + lead + match : null;
   }
 

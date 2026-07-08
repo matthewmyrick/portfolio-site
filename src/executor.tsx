@@ -83,9 +83,15 @@ function splitChain(s: string): ChainUnit[] {
   return out;
 }
 
-// Expand `$?` (last exit status). Like bash: expands bare and inside double
-// quotes, but never inside single quotes.
-function expandStatus(s: string): string {
+function lookupVar(name: string): string {
+  if (name === '?') return String(shell.lastExit);
+  if (name === 'PWD') return S().cwd;
+  return shell.env.get(name) ?? '';
+}
+
+// Expand `$?`, `$NAME`, and `${NAME}`. Like bash: expands bare and inside
+// double quotes, but never inside single quotes. Undefined vars → empty.
+function expandVars(s: string): string {
   let out = '';
   let inSingle = false;
   let inDouble = false;
@@ -101,13 +107,46 @@ function expandStatus(s: string): string {
       inDouble = !inDouble;
       out += ch;
     } else if (ch === '$' && s[i + 1] === '?') {
-      out += String(shell.lastExit);
+      out += lookupVar('?');
       i++;
+    } else if (ch === '$' && s[i + 1] === '{') {
+      const end = s.indexOf('}', i + 2);
+      if (end === -1) {
+        out += ch;
+        continue;
+      }
+      out += lookupVar(s.slice(i + 2, end));
+      i = end;
+    } else if (ch === '$' && /[A-Za-z_]/.test(s[i + 1] ?? '')) {
+      let j = i + 1;
+      while (j < s.length && /\w/.test(s[j])) j++;
+      out += lookupVar(s.slice(i + 1, j));
+      i = j - 1;
     } else {
       out += ch;
     }
   }
   return out;
+}
+
+// Expand aliases in command position (start of each pipe segment), like bash.
+// Alias values may themselves contain pipes; the caller re-splits.
+function expandAliasSegment(seg: string): string {
+  let s = seg.trim();
+  const seen = new Set<string>();
+  for (;;) {
+    const m = s.match(/^(\S+)/);
+    if (!m) return s;
+    const name = m[1];
+    const val = shell.aliases.get(name);
+    if (!val || seen.has(name)) return s;
+    seen.add(name);
+    s = val + s.slice(name.length);
+  }
+}
+
+function expandAliases(unit: string): string {
+  return splitPipes(unit).map(expandAliasSegment).join(' | ');
 }
 
 // Split a line on top-level `|` (ignoring pipes inside quotes).
@@ -272,12 +311,14 @@ export function runCommand(raw: string): void {
   for (const u of units) {
     if (u.op === '&&' && shell.lastExit !== 0) continue;
     if (u.op === '||' && shell.lastExit === 0) continue;
-    runUnit(expandStatus(u.cmd));
+    runUnit(u.cmd);
   }
 }
 
 // Run one pipeline / simple command and record its exit status in shell.lastExit.
-function runUnit(unit: string): void {
+function runUnit(rawUnit: string): void {
+  // bash order: alias expansion first, then parameter expansion.
+  const unit = expandVars(expandAliases(rawUnit));
   const segments = splitPipes(unit);
   if (!segments.length) return;
   shell.lastExit = 0;

@@ -16,7 +16,7 @@ import { TERMINALS, isTermType } from './lib/terminals';
 import { RickRoll } from './components/RickRoll';
 import { openVim } from './components/Vim';
 import { openLess } from './components/Less';
-import { shell } from './lib/shell';
+import { shell, resetShellSession, applyRcLine } from './lib/shell';
 
 export interface Ctx {
   args: string[]; // positional args (quotes stripped)
@@ -634,10 +634,118 @@ export const COMMANDS: Record<string, Command> = {
   },
 
   source: {
-    desc: 'Restart the terminal session',
-    usage: 'source',
+    desc: 'Apply a config file (or restart the session)',
+    usage: 'source [file]',
     group: 'Session',
-    run: () => startSession()
+    man: {
+      description:
+        'With a file argument, parses alias/export lines and applies them ' +
+        'to the running shell — edit ~/.bashrc in vim, then ' +
+        '`source ~/.bashrc` to load your changes. With no argument, ' +
+        'restarts the terminal session (which re-applies ~/.bashrc).',
+      examples: ['source ~/.bashrc', 'source'],
+      seeAlso: ['alias', 'export', 'vim']
+    },
+    run: ({ args }) => {
+      if (!args.length) return startSession();
+      const abs = resolvePath(S().cwd, args[0]);
+      const node = getNode(abs);
+      if (!node || node.type !== 'file') {
+        return printErr(`source: ${args[0]}: No such file or directory`);
+      }
+      let n = 0;
+      node.content.split('\n').forEach((l) => {
+        if (applyRcLine(l)) n++;
+      });
+      print(
+        <span className="t-dim">
+          applied {n} definition{n === 1 ? '' : 's'} from {displayPath(abs)}
+        </span>
+      );
+    }
+  },
+
+  alias: {
+    desc: 'Define or list command aliases',
+    usage: "alias [name='value']",
+    group: 'Session',
+    man: {
+      description:
+        'With no arguments, lists the aliases in effect. With ' +
+        "name='value', defines one for the session — the alias expands in " +
+        'command position, including after pipes, and may itself contain ' +
+        'pipes. Defaults come from ~/.bashrc at session start.',
+      examples: ["alias ll='ls -la'", "alias findmd='ls -R | grep md'", 'alias'],
+      seeAlso: ['unalias', 'source', 'env']
+    },
+    run: ({ rest }) => {
+      const r = rest.trim();
+      if (!r) {
+        if (!shell.aliases.size) {
+          return print(<span className="t-dim">(no aliases — try: alias ll='ls -la')</span>);
+        }
+        const lines = [...shell.aliases]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([k, v]) => `alias ${k}='${v}'`);
+        return print(<div className="whitespace-pre-wrap">{lines.join('\n')}</div>);
+      }
+      if (applyRcLine('alias ' + r)) return;
+      const one = shell.aliases.get(r);
+      if (one !== undefined) return print(<span>{`alias ${r}='${one}'`}</span>);
+      printErr("alias: invalid syntax — try: alias ll='ls -la'");
+    },
+    text: () =>
+      [...shell.aliases]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([k, v]) => `alias ${k}='${v}'`)
+        .join('\n')
+  },
+
+  unalias: {
+    desc: 'Remove an alias',
+    usage: 'unalias <name> | -a',
+    group: 'Session',
+    hidden: true,
+    run: ({ args, flags }) => {
+      if (flags.a) return void shell.aliases.clear();
+      if (!args.length) return printErr('usage: unalias <name> (or unalias -a)');
+      if (!shell.aliases.delete(args[0])) printErr(`unalias: ${args[0]}: not found`);
+    }
+  },
+
+  export: {
+    desc: 'Set an environment variable',
+    usage: 'export NAME=value',
+    group: 'Session',
+    man: {
+      description:
+        'Sets an environment variable for the session. Reference it with ' +
+        '$NAME or ${NAME} anywhere on a command line (double quotes ok, ' +
+        'single quotes suppress expansion, just like bash).',
+      examples: ['export NAME=matthew', 'echo hello $NAME', 'echo $HOME $USER $?'],
+      seeAlso: ['env', 'echo', 'alias']
+    },
+    run: ({ rest }) => {
+      const r = rest.trim();
+      if (!r) {
+        const lines = [...shell.env].map(([k, v]) => `declare -x ${k}="${v}"`);
+        return print(<div className="whitespace-pre-wrap">{lines.join('\n')}</div>);
+      }
+      if (!applyRcLine('export ' + r)) printErr('export: usage: export NAME=value');
+    }
+  },
+
+  env: {
+    desc: 'List environment variables',
+    group: 'Session',
+    hidden: true,
+    run: () =>
+      print(
+        <div className="whitespace-pre-wrap">
+          {[...shell.env].map(([k, v]) => `${k}=${v}`).join('\n')}
+        </div>
+      ),
+    text: () => [...shell.env].map(([k, v]) => `${k}=${v}`).join('\n')
   },
 
   neofetch: {
@@ -909,6 +1017,10 @@ function helpOutput(): ReactNode {
 export function startSession(): void {
   const st = S();
   st.clearLines();
+  // Fresh shell state, then apply ~/.bashrc (including any vim edits).
+  resetShellSession();
+  const rc = getNode(HOME + '/.bashrc');
+  if (rc && rc.type === 'file') rc.content.split('\n').forEach(applyRcLine);
   st.print(<div className="t-accent text-base font-bold">There's no place like 127.0.0.1 🏡</div>);
   st.print(
     <div className="mt-1">
