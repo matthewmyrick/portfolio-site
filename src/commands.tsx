@@ -21,6 +21,7 @@ import { openLess } from './components/Less';
 import { SlTrain } from './components/eggs/SlTrain';
 import { PacmanInstall } from './components/eggs/Pacman';
 import { Ping } from './components/eggs/Ping';
+import { Parrot } from './components/eggs/Parrot';
 import { shell, resetShellSession, applyRcLine } from './lib/shell';
 
 export interface Ctx {
@@ -671,6 +672,48 @@ export const COMMANDS: Record<string, Command> = {
           applied {n} definition{n === 1 ? '' : 's'} from {displayPath(abs)}
         </span>
       );
+    }
+  },
+
+  curl: {
+    desc: 'Transfer data from a URL',
+    usage: 'curl <url>',
+    group: 'Session',
+    hidden: true,
+    man: {
+      description:
+        'Fetches things from the internet. The most load-bearing URL on ' +
+        'the modern web is parrot.live, and this curl supports it fully. ' +
+        'Everything else is DNS problems (it is always DNS).',
+      examples: ['curl parrot.live', 'curl matthewjmyrick.com'],
+      seeAlso: ['ping']
+    },
+    run: ({ args }) => {
+      if (!args.length) return printErr("curl: try 'curl parrot.live'");
+      const url = args[0]
+        .replace(/^https?:\/\//, '')
+        .replace(/\/$/, '')
+        .toLowerCase();
+      if (url === 'parrot.live') {
+        S().setJob('parrot');
+        return print(<Parrot />);
+      }
+      if (url === 'matthewjmyrick.com' || url === 'www.matthewjmyrick.com') {
+        return print(
+          <span className="t-dim">
+            curl: (3) you are literally already here — put down the curl
+          </span>
+        );
+      }
+      if (url === 'wttr.in') {
+        return print(
+          <span>
+            Weather report: <span className="t-yellow">apartment</span> — 22°C, no wind, 0% chance
+            of rain. Ideal conditions for self-hosting.
+          </span>
+        );
+      }
+      printErr(`curl: (6) Could not resolve host: ${url}`);
     }
   },
 
