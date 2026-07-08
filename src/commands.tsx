@@ -671,6 +671,36 @@ export const COMMANDS: Record<string, Command> = {
     }
   },
 
+  emacs: {
+    desc: 'The other editor',
+    group: 'Session',
+    hidden: true,
+    run: () => {
+      shell.lastExit = 127;
+      print(
+        <span>
+          <span className="t-red">emacs: command not found.</span> This is a{' '}
+          <span className="t-green font-bold">vim</span> household.
+        </span>
+      );
+    }
+  },
+
+  nano: {
+    desc: 'Training wheels',
+    group: 'Session',
+    hidden: true,
+    run: () => {
+      shell.lastExit = 127;
+      print(
+        <span>
+          <span className="t-red">nano: command not found.</span> We don't do training wheels here.
+          Try <span className="t-green font-bold">vim</span>.
+        </span>
+      );
+    }
+  },
+
   sudo: {
     desc: 'Execute a command as another user (lol, no)',
     usage: 'sudo <command>',
