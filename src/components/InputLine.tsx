@@ -1,4 +1,4 @@
-import { useMemo, useRef, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { useStore } from '../store';
 import { runCommand } from '../executor';
 import { complete, suggest } from '../lib/complete';
@@ -36,11 +36,22 @@ function LiveText({
   );
 }
 
+// All history entries containing `q`, most recent first.
+function riMatches(q: string): string[] {
+  if (!q) return [];
+  const h = useStore.getState().history;
+  const out: string[] = [];
+  for (let i = h.length - 1; i >= 0; i--) if (h[i].includes(q)) out.push(h[i]);
+  return out;
+}
+
 export function InputLine() {
   const command = useStore((s) => s.command);
   const cursor = useStore((s) => s.cursor);
   const cwd = useStore((s) => s.cwd);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Ctrl+R reverse-i-search: query + which match (0 = most recent).
+  const [risearch, setRisearch] = useState<{ q: string; idx: number } | null>(null);
 
   // Inline gray autofill suggestion (command/path, else most recent history).
   const ghost = useMemo(() => {
@@ -94,6 +105,42 @@ export function InputLine() {
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     const st = useStore.getState();
+
+    // Ctrl+R: enter reverse-i-search, or cycle to an older match.
+    if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
+      e.preventDefault();
+      setRisearch((r) => (r ? { ...r, idx: r.idx + 1 } : { q: '', idx: 0 }));
+      return;
+    }
+    if (risearch) {
+      e.preventDefault();
+      const matches = riMatches(risearch.q);
+      const match = matches.length ? matches[Math.min(risearch.idx, matches.length - 1)] : null;
+      if (e.key === 'Enter') {
+        setRisearch(null);
+        if (match) {
+          st.setCommand('', 0);
+          runCommand(match);
+        }
+        return;
+      }
+      // →/←/End/Esc accept the match into the input line for editing.
+      if (['Escape', 'ArrowLeft', 'ArrowRight', 'End'].includes(e.key)) {
+        setRisearch(null);
+        if (match) {
+          st.setCommand(match, match.length);
+          setSelection(match.length);
+        }
+        return;
+      }
+      if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) return setRisearch(null);
+      if (e.key === 'Backspace') return setRisearch({ q: risearch.q.slice(0, -1), idx: 0 });
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setRisearch({ q: risearch.q + e.key, idx: 0 });
+      }
+      return; // swallow everything else while searching
+    }
+
     if (e.key === 'Enter') {
       e.preventDefault();
       const v = st.command;
@@ -148,6 +195,43 @@ export function InputLine() {
       return;
     }
     setTimeout(syncCursor, 0);
+  }
+
+  // Reverse-i-search renders exactly like bash: the prompt is replaced by
+  // (reverse-i-search)`query': match — with the query highlighted in place.
+  if (risearch) {
+    const matches = riMatches(risearch.q);
+    const match = matches.length ? matches[Math.min(risearch.idx, matches.length - 1)] : null;
+    const at = match ? match.indexOf(risearch.q) : -1;
+    return (
+      <div className="relative cursor-text" onClick={focus}>
+        <div className="pointer-events-none whitespace-pre-wrap">
+          <span className="t-dim">({risearch.q && !match ? 'failed ' : ''}reverse-i-search)`</span>
+          <span className="t-yellow">{risearch.q}</span>
+          <span className="t-dim">': </span>
+          {match && at >= 0 ? (
+            <>
+              {match.slice(0, at)}
+              <span className="t-yellow font-bold">{risearch.q}</span>
+              {match.slice(at + risearch.q.length)}
+            </>
+          ) : null}
+          <span className="mm-cursor"> </span>
+        </div>
+        <input
+          ref={inputRef}
+          value={command}
+          onChange={() => undefined}
+          onKeyDown={onKeyDown}
+          spellCheck={false}
+          autoComplete="off"
+          // eslint-disable-next-line jsx-a11y/no-autofocus
+          autoFocus
+          className="absolute inset-0 h-full w-full bg-transparent text-transparent caret-transparent outline-none"
+          aria-label="reverse history search"
+        />
+      </div>
+    );
   }
 
   return (
