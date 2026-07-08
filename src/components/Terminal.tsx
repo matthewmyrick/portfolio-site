@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useStore, type Line } from '../store';
 import { InputLine } from './InputLine';
 import { Picker } from './Picker';
+import { Vim } from './Vim';
 import { startSession } from '../commands';
 
 export function Terminal() {
@@ -37,6 +38,16 @@ export function Terminal() {
   };
 
   const warp = term === 'warp';
+
+  // vim is a fullscreen app: it takes over the whole screen (scrollback
+  // stays in the store and reappears when it exits).
+  if (overlay === 'vim') {
+    return (
+      <div className="term-screen t-fg h-full text-[13px] leading-relaxed sm:text-sm">
+        <Vim />
+      </div>
+    );
+  }
 
   return (
     <div

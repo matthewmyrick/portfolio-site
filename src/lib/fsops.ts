@@ -59,6 +59,20 @@ export function basename(absPath: string): string {
   return parts[parts.length - 1] ?? '/';
 }
 
+// Create or overwrite a file (session-only — the FS tree lives in memory).
+// The parent directory must already exist. Returns false on failure.
+export function writeFile(absPath: string, content: string): boolean {
+  const parts = absPath.split('/').filter(Boolean);
+  const name = parts.pop();
+  if (!name) return false;
+  const parent = getNode('/' + parts.join('/'));
+  if (!isDir(parent)) return false;
+  const existing = parent.children[name];
+  if (existing && existing.type === 'dir') return false;
+  parent.children[name] = { type: 'file', content };
+  return true;
+}
+
 export interface DirEntry {
   name: string;
   isDir: boolean;

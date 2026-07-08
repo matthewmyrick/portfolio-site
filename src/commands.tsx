@@ -14,6 +14,7 @@ import {
 import { THEMES, isThemeName } from './lib/themes';
 import { TERMINALS, isTermType } from './lib/terminals';
 import { RickRoll } from './components/RickRoll';
+import { openVim } from './components/Vim';
 
 export interface Ctx {
   args: string[]; // positional args (quotes stripped)
@@ -209,6 +210,35 @@ function wcText(ctx: Ctx, stdin: string | null): string {
   return `${lines} ${words} ${text.length}`;
 }
 
+// ---- vim -------------------------------------------------------------------
+const vimCommand: Command = {
+  desc: 'Edit a file (modal editor — good luck exiting)',
+  usage: 'vim [file]',
+  group: 'Filesystem',
+  run: ({ args }) => {
+    if (!args.length) {
+      // The most famous thing about vim is not knowing how to leave it.
+      return openVim({ path: null, lines: ['now try to exit.'], newFile: false });
+    }
+    const abs = resolvePath(S().cwd, args[0]);
+    const node = getNode(abs);
+    if (node && node.type === 'dir') return printErr(`vim: ${args[0]}: Is a directory`);
+    if (node) {
+      return openVim({
+        path: abs,
+        lines: node.content.replace(/\n$/, '').split('\n'),
+        newFile: false
+      });
+    }
+    // New file — its parent directory must exist; created for real on :w.
+    const parent = getNode(abs.slice(0, abs.lastIndexOf('/')) || '/');
+    if (!parent || parent.type !== 'dir') {
+      return printErr(`vim: ${args[0]}: No such file or directory`);
+    }
+    openVim({ path: abs, lines: [''], newFile: true });
+  }
+};
+
 // ---- registry ------------------------------------------------------------
 export const COMMANDS: Record<string, Command> = {
   help: {
@@ -403,6 +433,10 @@ export const COMMANDS: Record<string, Command> = {
     group: 'Filesystem',
     run: () => S().setOverlay('fzf')
   },
+
+  vim: vimCommand,
+  nvim: { ...vimCommand, hidden: true },
+  vi: { ...vimCommand, hidden: true },
 
   open: {
     desc: 'Open a file in a new tab (e.g. open resume.pdf)',
