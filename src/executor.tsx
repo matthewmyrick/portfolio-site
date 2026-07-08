@@ -285,24 +285,61 @@ export function finishFzf(path: string): void {
   executePipeline(contents, tail);
 }
 
+// History expansion: `!!` → previous command, `!$` → its last argument.
+// Skipped inside single quotes. Returns an error tag when there's no history.
+function expandBangs(s: string): { out: string } | { error: string } {
+  const h = S().history;
+  const prev = h[h.length - 1] ?? '';
+  const prevTokens = prev.match(/"[^"]*"|'[^']*'|[^\s]+/g) ?? [];
+  let out = '';
+  let inSingle = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inSingle) {
+      out += ch;
+      if (ch === "'") inSingle = false;
+    } else if (ch === "'") {
+      inSingle = true;
+      out += ch;
+    } else if (ch === '!' && (s[i + 1] === '!' || s[i + 1] === '$')) {
+      if (!prev) return { error: '!' + s[i + 1] };
+      out += s[i + 1] === '!' ? prev : (prevTokens[prevTokens.length - 1] ?? '');
+      i++;
+    } else {
+      out += ch;
+    }
+  }
+  return { out };
+}
+
 export function runCommand(raw: string): void {
   const trimmed = raw.trim();
   if (!trimmed) return;
   const st = S();
 
-  // Echo the prompt + highlighted command into history (starts a new group).
-  st.pushInput(<CommandEcho cwd={st.cwd} command={trimmed} />);
-  st.pushHistory(trimmed);
-
   // While a game is running, all input goes to the game until quit.
   if (st.game.active) {
+    st.pushInput(<CommandEcho cwd={st.cwd} command={trimmed} />);
+    st.pushHistory(trimmed);
     processGameInput(trimmed);
     return;
   }
 
+  // History expansion happens first, against the PREVIOUS command. Like
+  // bash, the expanded line is echoed and is what history remembers.
+  const bang = expandBangs(trimmed);
+  st.pushInput(<CommandEcho cwd={st.cwd} command={trimmed} />);
+  if ('error' in bang) {
+    shell.lastExit = 1;
+    return printErr(`mmsh: ${bang.error}: event not found`);
+  }
+  const line = bang.out;
+  if (line !== trimmed) print(<span className="t-dim">{line}</span>);
+  st.pushHistory(line);
+
   // `a && b || c ; d` — run units left to right with real shell semantics:
   // && runs on success, || on failure, ; always. `$?` expands per unit.
-  const units = splitChain(trimmed);
+  const units = splitChain(line);
   if (units.length > 1) {
     // fzf is async (it opens an overlay), so it can't take part in a chain.
     const hasFzf = units.some((u) => parse(splitPipes(u.cmd)[0] ?? '').command === 'fzf');
