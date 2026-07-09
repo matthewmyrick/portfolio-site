@@ -20,6 +20,7 @@ import { openVim } from './components/Vim';
 import { startSu } from './executor';
 import { openLess } from './components/Less';
 import { GitLog } from './components/eggs/GitLog';
+import { QrCode } from './components/eggs/QrCode';
 import { SlTrain } from './components/eggs/SlTrain';
 import { PacmanInstall } from './components/eggs/Pacman';
 import { Ping } from './components/eggs/Ping';
@@ -1612,6 +1613,39 @@ export const COMMANDS: Record<string, Command> = {
           Try <span className="t-green font-bold">vim</span>.
         </span>
       );
+    }
+  },
+
+  qr: {
+    desc: 'QR code in the terminal (scan with a phone)',
+    usage: 'qr [linkedin|github|email|<url>]',
+    group: 'Matthew',
+    man: {
+      description:
+        'Renders a scannable QR code with half-block characters, dark-on-' +
+        'light so cameras cooperate. Defaults to this site; linkedin, ' +
+        'github, and email are built in, or pass any URL.',
+      examples: ['qr', 'qr linkedin', 'qr https://example.com'],
+      seeAlso: ['hire', 'contact', 'open']
+    },
+    complete: (args) => (args.length === 0 ? ['linkedin', 'github', 'email'] : []),
+    run: ({ args }) => {
+      const targets: Record<string, { data: string; label: string }> = {
+        site: { data: 'https://matthewjmyrick.com', label: 'this site' },
+        linkedin: { data: 'https://www.linkedin.com/in/mattmyrick/', label: 'LinkedIn' },
+        github: { data: 'https://github.com/matthewmyrick', label: 'GitHub' },
+        email: { data: 'mailto:matthewmyrick2@gmail.com', label: 'email me' }
+      };
+      const key = (args[0] ?? 'site').toLowerCase();
+      let target = targets[key];
+      if (!target && /^https?:\/\//i.test(args[0] ?? '')) {
+        if (args[0].length > 120) return printErr('qr: URL too long (keep it under 120 chars)');
+        target = { data: args[0], label: 'your URL' };
+      }
+      if (!target) {
+        return printErr('usage: qr [linkedin|github|email|<https://url>]');
+      }
+      print(<QrCode data={target.data} label={target.label} />);
     }
   },
 
