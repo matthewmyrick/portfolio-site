@@ -19,6 +19,7 @@ import { RickRoll } from './components/RickRoll';
 import { openVim } from './components/Vim';
 import { startSu } from './executor';
 import { openLess } from './components/Less';
+import { GitLog } from './components/eggs/GitLog';
 import { SlTrain } from './components/eggs/SlTrain';
 import { PacmanInstall } from './components/eggs/Pacman';
 import { Ping } from './components/eggs/Ping';
@@ -1611,6 +1612,88 @@ export const COMMANDS: Record<string, Command> = {
           Try <span className="t-green font-bold">vim</span>.
         </span>
       );
+    }
+  },
+
+  git: {
+    desc: 'The stupid content tracker (this repo, live)',
+    usage: 'git log | status | blame <file> | push',
+    group: 'Session',
+    hidden: true,
+    man: {
+      description:
+        'git log shows the REAL commit history of this site, live from ' +
+        'the public GitHub API. The rest behaves the way a read-only ' +
+        'production box should: status is clean, push is pointless, and ' +
+        'blame is always matthew.',
+      examples: ['git log --oneline', 'git blame resume.md', 'git push'],
+      seeAlso: ['vim', 'history']
+    },
+    complete: (args) =>
+      args.length === 0 ? ['log', 'status', 'blame', 'push', 'pull', 'checkout', 'diff'] : [],
+    run: ({ args, flags }) => {
+      const sub = (args[0] ?? '').toLowerCase();
+      switch (sub) {
+        case 'log':
+          return print(<GitLog oneline={!!flags.oneline} />);
+        case 'status':
+          return print(
+            <div className="whitespace-pre-wrap">
+              <div>On branch main</div>
+              <div>Your branch is up to date with 'origin/main'.</div>
+              <div className="t-green mt-1">
+                nothing to commit, working tree clean{' '}
+                <span className="t-dim">(it's a website. you're soaking in it.)</span>
+              </div>
+            </div>
+          );
+        case 'blame': {
+          const target = args[1];
+          if (!target) return printErr('usage: git blame <file>');
+          const node = getNode(resolvePath(S().cwd, target));
+          if (!node || node.type !== 'file') {
+            return printErr(`fatal: no such path '${target}' in HEAD`);
+          }
+          const lines = node.content.replace(/\n$/, '').split('\n').slice(0, 30);
+          return print(
+            <div className="leading-relaxed whitespace-pre">
+              {lines.map((l, i) => (
+                <div key={i}>
+                  <span className="t-yellow">{(0x1a2b3c + i * 7).toString(16).slice(0, 7)}</span>
+                  <span className="t-dim">
+                    {' (matthew '}
+                    {String(2022 + (i % 5))}-{String((i % 12) + 1).padStart(2, '0')}-
+                    {String((i % 27) + 1).padStart(2, '0')} {String(i + 1).padStart(3)}
+                    {') '}
+                  </span>
+                  {l}
+                </div>
+              ))}
+              <div className="t-dim mt-1">
+                (every line: matthew. it's a personal site. the blame was never in question.)
+              </div>
+            </div>
+          );
+        }
+        case 'push':
+          return print(
+            <span>
+              Everything up-to-date <span className="t-dim">(the site IS the deployment)</span>
+            </span>
+          );
+        case 'pull':
+          return print(<span>Already up to date.</span>);
+        case 'checkout':
+          return printErr(
+            "error: this is production. we don't 'try things' on production. (branch not created)"
+          );
+        case 'diff':
+          return print(<span className="t-dim">(no changes — see git status. serenity.)</span>);
+        case '':
+          return printErr("usage: git <log|status|blame|push|pull|diff>  — try 'git log'");
+        default:
+          return printErr(`git: '${sub}' is not a git command. See 'git'.`);
+      }
     }
   },
 
