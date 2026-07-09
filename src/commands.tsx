@@ -1968,7 +1968,7 @@ export const COMMANDS: Record<string, Command> = {
   },
 
   exit: {
-    desc: 'Close the connection (or try to leave)',
+    desc: 'Close the connection, pane, or (try to) leave',
     group: 'Session',
     hidden: true,
     run: () => {
@@ -1979,12 +1979,47 @@ export const COMMANDS: Record<string, Command> = {
         shell.env.set('HOSTNAME', 'portfolio');
         return print(<span>Connection to guestbox closed.</span>);
       }
+      // In a tmux split, exit closes the pane (like a real shell would).
+      if (S().panes.length > 1) return S().closePane();
       print(
         <span>
           logout
           <br />
           <span className="t-dim">There's no place like 127.0.0.1 — you can never leave. 🏡</span>
         </span>
+      );
+    }
+  },
+
+  tmux: {
+    desc: 'Terminal multiplexer (split panes)',
+    usage: 'tmux  (then Ctrl+b …)',
+    group: 'Session',
+    man: {
+      description:
+        'Split the terminal into up to four independent sessions — own ' +
+        'scrollback, cwd, and prompt each (theme, history, and the ' +
+        'filesystem are shared). Prefix is Ctrl+b, like the real thing: ' +
+        '% splits side-by-side, " splits stacked, o / arrows move focus, ' +
+        'x (or exit) closes the pane.',
+      examples: ['tmux', 'Ctrl+b %', 'Ctrl+b o', 'Ctrl+b x'],
+      seeAlso: ['exit', 'clear']
+    },
+    run: () => {
+      if (S().panes.length === 1) {
+        S().splitPane('v');
+        return;
+      }
+      print(
+        <div className="whitespace-pre-wrap">
+          <div className="t-accent font-bold">tmux keys (prefix Ctrl+b):</div>
+          <div>
+            <span className="t-yellow">%</span> split side-by-side ·{' '}
+            <span className="t-yellow">"</span> split stacked · <span className="t-yellow">o</span>
+            /arrows switch pane · <span className="t-yellow">x</span> close pane (or run{' '}
+            <span className="t-green">exit</span>)
+          </div>
+        </div>
       );
     }
   },
@@ -2440,6 +2475,8 @@ function helpOutput(all = false): ReactNode {
 // Tagline + welcome, shown at session start and by `source`.
 export function startSession(): void {
   const st = S();
+  // A fresh session collapses any tmux split back to a single pane.
+  st.resetPanes();
   st.clearLines();
   // A new session always starts back on the portfolio host.
   if (st.host !== 'portfolio') {
