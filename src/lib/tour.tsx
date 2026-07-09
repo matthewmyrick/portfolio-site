@@ -82,11 +82,15 @@ function steps(originalTheme: string): Step[] {
           <span className="t-red font-bold">
             🚨 Hold on — one of those pods is CrashLoopBackOff.
           </span>{' '}
-          <span className="t-dim">A live incident, right now, on this very cluster.</span>
+          <span className="t-dim">
+            A live incident, right now, on this very cluster. I'll leave the debugging to you…
+          </span>
         </div>
       ),
-      pause: 2400
-    }
+      pause: 2600
+    },
+    // …and while you think about that, the closing pitch:
+    { cmd: () => 'hire', pause: 2600 }
   ];
 }
 
