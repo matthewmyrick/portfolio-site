@@ -192,3 +192,11 @@ body {
     transform: translate(0);
   }
 }
+
+/* tmux-style pane borders: dim for inactive, green for the focused pane. */
+.mm-pane {
+  border: 1px solid rgb(var(--t-dim) / 0.35);
+}
+.mm-pane-active {
+  border-color: rgb(var(--t-green) / 0.7);
+}
