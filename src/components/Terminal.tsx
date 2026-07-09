@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore, type Line, type PaneState } from '../store';
 import { InputLine } from './InputLine';
 import { Picker } from './Picker';
 import { Vim } from './Vim';
 import { Less } from './Less';
 import { Htop } from './eggs/Htop';
-import { startSession } from '../commands';
+import { startSession, printWelcome } from '../commands';
+import { Prompt, HighlightedText } from './Prompt';
 
 // One pane's scrollback + (when active) the input line or an inline picker.
 function PaneView({
@@ -70,6 +71,7 @@ function PaneView({
   return (
     <div
       ref={scrollRef}
+      data-pane-id={pane.id}
       onMouseDown={onMouseDown}
       onClick={focusInput}
       className={`term-screen t-fg relative h-full min-h-0 overflow-y-auto px-4 py-3 text-[13px] leading-relaxed sm:text-sm ${
@@ -83,14 +85,23 @@ function PaneView({
           ))}
         </div>
       ))}
-      {active &&
-        (overlay ? (
+      {active ? (
+        overlay ? (
           <Picker />
         ) : job ? null : (
           <div className={warp ? 'warp-block' : ''}>
             <InputLine />
           </div>
-        ))}
+        )
+      ) : (
+        // Inactive panes keep a frozen (non-blinking) prompt so they still
+        // look like terminals — including any half-typed command.
+        <div className="opacity-60">
+          <Prompt cwd={pane.cwd}>
+            <HighlightedText text={pane.command} cwd={pane.cwd} />
+          </Prompt>
+        </div>
+      )}
       <div ref={bottomRef} />
     </div>
   );
@@ -107,7 +118,9 @@ function TmuxBar({ panes, activeId }: { panes: PaneState[]; activeId: number }) 
       <span>
         [portfolio] {panes.map((p, i) => `${i}:mmsh${p.id === activeId ? '*' : ''}`).join('  ')}
       </span>
-      <span className="hidden sm:inline">{host} · ^b % split · ^b o next · ^b x close</span>
+      <span className="hidden sm:inline">
+        {host} · ^b then: % \" split · arrows/o move · x close
+      </span>
     </div>
   );
 }
@@ -120,6 +133,7 @@ export function Terminal() {
   const activePane = useStore((s) => s.activePane);
   const splitDir = useStore((s) => s.splitDir);
   const prefixAt = useRef(0);
+  const [prefixArmed, setPrefixArmed] = useState(false);
 
   // While a foreground job (animation) runs, input is hidden and Ctrl+C kills it.
   useEffect(() => {
@@ -135,8 +149,45 @@ export function Terminal() {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [job]);
 
-  // tmux prefix: Ctrl+b arms for 2s, then % " o x / arrows act on panes.
+  // tmux prefix: Ctrl+b arms for 2s (shown as a ^B badge), then % " o x
+  // and arrows act on panes. Arrows move focus GEOMETRICALLY — up/down/
+  // left/right pick the nearest pane in that direction, whatever the layout.
   useEffect(() => {
+    let clearTimer: ReturnType<typeof setTimeout> | undefined;
+    const disarm = () => {
+      prefixAt.current = 0;
+      setPrefixArmed(false);
+      clearTimeout(clearTimer);
+    };
+    const arm = () => {
+      prefixAt.current = Date.now();
+      setPrefixArmed(true);
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(disarm, 2000);
+    };
+
+    const moveDir = (dir: 'left' | 'right' | 'up' | 'down') => {
+      const s = useStore.getState();
+      const els = [...document.querySelectorAll<HTMLElement>('[data-pane-id]')];
+      const cur = els.find((el) => Number(el.dataset.paneId) === s.activePane);
+      if (!cur) return;
+      const cr = cur.getBoundingClientRect();
+      let best: { id: number; d: number } | null = null;
+      for (const el of els) {
+        const id = Number(el.dataset.paneId);
+        if (id === s.activePane) continue;
+        const r = el.getBoundingClientRect();
+        const dx = r.left + r.width / 2 - (cr.left + cr.width / 2);
+        const dy = r.top + r.height / 2 - (cr.top + cr.height / 2);
+        const inDir =
+          dir === 'left' ? dx < -1 : dir === 'right' ? dx > 1 : dir === 'up' ? dy < -1 : dy > 1;
+        if (!inDir) continue;
+        const d = Math.abs(dx) + Math.abs(dy);
+        if (!best || d < best.d) best = { id, d };
+      }
+      if (best) s.focusPaneId(best.id);
+    };
+
     const onKey = (e: globalThis.KeyboardEvent) => {
       const s = useStore.getState();
       // No tmux keys inside fullscreen apps or foreground jobs.
@@ -144,36 +195,53 @@ export function Terminal() {
       if (e.ctrlKey && (e.key === 'b' || e.key === 'B')) {
         e.preventDefault();
         e.stopPropagation();
-        prefixAt.current = Date.now();
+        arm();
         return;
       }
       // Bare modifier presses (Shift for %/") must not consume the prefix.
       if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') return;
       if (Date.now() - prefixAt.current > 2000) return;
-      prefixAt.current = 0;
       const act = () => {
         e.preventDefault();
         e.stopPropagation();
+        disarm();
       };
-      if (e.key === '%') {
+      if (e.key === '%' || e.key === '"') {
         act();
-        s.splitPane('v');
-      } else if (e.key === '"') {
-        act();
-        s.splitPane('h');
-      } else if (e.key === 'o' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        if (s.panes.length >= 4) {
+          s.print(<span className="t-dim">tmux: max 4 panes — close one first (Ctrl+b x)</span>);
+          return;
+        }
+        s.splitPane(e.key === '%' ? 'v' : 'h');
+        printWelcome();
+      } else if (e.key === 'o') {
         act();
         s.focusPane(1);
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      } else if (e.key === 'ArrowLeft') {
         act();
-        s.focusPane(-1);
+        moveDir('left');
+      } else if (e.key === 'ArrowRight') {
+        act();
+        moveDir('right');
+      } else if (e.key === 'ArrowUp') {
+        act();
+        moveDir('up');
+      } else if (e.key === 'ArrowDown') {
+        act();
+        moveDir('down');
       } else if (e.key === 'x') {
         act();
         s.closePane();
+      } else {
+        disarm();
       }
     };
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      clearTimeout(clearTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Show the welcome on first load (guard handles StrictMode double-mount).
@@ -215,25 +283,49 @@ export function Terminal() {
     );
   }
 
+  const prefixBadge = prefixArmed ? (
+    <div
+      className="fixed right-3 bottom-8 z-50 rounded px-2 py-1 text-xs font-bold shadow-lg"
+      style={{ backgroundColor: 'rgb(var(--t-yellow))', color: 'rgb(var(--t-bg))' }}
+    >
+      ^B — % split | " stack | arrows move | x close
+    </div>
+  ) : null;
+
   if (panes.length === 1) {
-    return <PaneView pane={panes[0]} active solo warp={warp} />;
+    return (
+      <>
+        <PaneView pane={panes[0]} active solo warp={warp} />
+        {prefixBadge}
+      </>
+    );
   }
 
+  // Layouts: 2 panes follow the first split's direction; 3 panes keep the
+  // FIRST pane long (full height or width) with the other two sharing the
+  // remaining half; 4 panes are quadrants.
   const grid =
     panes.length === 2
       ? splitDir === 'v'
         ? 'grid-cols-2'
         : 'grid-rows-2'
       : 'grid-cols-2 grid-rows-2';
+  const span = (i: number): string => {
+    if (panes.length !== 3 || i !== 0) return '';
+    return splitDir === 'v' ? 'row-span-2' : 'col-span-2';
+  };
 
   return (
     <div className="flex h-full flex-col">
       <div className={`grid min-h-0 flex-1 ${grid}`}>
-        {panes.map((p) => (
-          <PaneView key={p.id} pane={p} active={p.id === activePane} solo={false} warp={warp} />
+        {panes.map((p, i) => (
+          <div key={p.id} className={`min-h-0 ${span(i)}`}>
+            <PaneView pane={p} active={p.id === activePane} solo={false} warp={warp} />
+          </div>
         ))}
       </div>
       <TmuxBar panes={panes} activeId={activePane} />
+      {prefixBadge}
     </div>
   );
 }
