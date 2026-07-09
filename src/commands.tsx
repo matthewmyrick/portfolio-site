@@ -21,6 +21,7 @@ import { startSu } from './executor';
 import { openLess } from './components/Less';
 import { GitLog } from './components/eggs/GitLog';
 import { QrCode } from './components/eggs/QrCode';
+import { startTour } from './lib/tour';
 import { SlTrain } from './components/eggs/SlTrain';
 import { PacmanInstall } from './components/eggs/Pacman';
 import { Ping } from './components/eggs/Ping';
@@ -1616,6 +1617,21 @@ export const COMMANDS: Record<string, Command> = {
     }
   },
 
+  tour: {
+    desc: 'Sit back — a guided demo drives the terminal',
+    group: 'Session',
+    man: {
+      description:
+        'Autopilot: the terminal types for itself — the résumé, the pipes, ' +
+        'the train, a theme change, and a live Kubernetes incident getting ' +
+        'diagnosed and fixed. Any key or click hands control back to you ' +
+        'immediately.',
+      examples: ['tour', '<any key> to cancel'],
+      seeAlso: ['about', 'help']
+    },
+    run: () => void startTour()
+  },
+
   qr: {
     desc: 'QR code in the terminal (scan with a phone)',
     usage: 'qr [linkedin|github|email|<url>]',
@@ -2443,8 +2459,9 @@ export function startSession(): void {
       <div>Welcome to my interactive portfolio terminal — self-hosted from my apartment!</div>
       <div className="t-dim">
         Run <span className="t-green font-bold">about</span> (or{' '}
-        <span className="t-green">cat about.md</span>) to learn about me, or{' '}
-        <span className="t-green font-bold">help</span> for all commands.
+        <span className="t-green">cat about.md</span>) to learn about me,{' '}
+        <span className="t-green font-bold">help</span> for all commands — or just type{' '}
+        <span className="t-green font-bold">tour</span> and watch.
       </div>
     </div>
   );
