@@ -329,6 +329,109 @@ function wcText(ctx: Ctx, stdin: string | null): string {
   return `${lines} ${words} ${text.length}`;
 }
 
+// ---- small coreutils (sort / uniq / rev / tr / sed) -------------------------
+
+// Input lines for a text utility: stdin if piped, else the file at args[i].
+function utilLines(ctx: Ctx, stdin: string | null, fileArg = 0): string[] | null {
+  let text = stdin;
+  if (text == null) {
+    const file = ctx.args[fileArg];
+    if (!file) return null;
+    const node = getNode(resolvePath(S().cwd, file));
+    if (!node || node.type !== 'file') return null;
+    text = node.content;
+  }
+  return text.replace(/\n$/, '').split('\n');
+}
+
+function sortText(ctx: Ctx, stdin: string | null): string {
+  const lines = utilLines(ctx, stdin) ?? [];
+  let out = [...lines];
+  if (ctx.flags.n) out.sort((a, b) => parseFloat(a) - parseFloat(b) || a.localeCompare(b));
+  else out.sort((a, b) => a.localeCompare(b));
+  if (ctx.flags.r) out.reverse();
+  if (ctx.flags.u) out = out.filter((l, i) => i === 0 || l !== out[i - 1]);
+  return out.join('\n');
+}
+
+function uniqText(ctx: Ctx, stdin: string | null): string {
+  const lines = utilLines(ctx, stdin) ?? [];
+  const out: string[] = [];
+  let prev: string | null = null;
+  let count = 0;
+  const flush = () => {
+    if (prev !== null) {
+      out.push(ctx.flags.c ? `${String(count).padStart(7)} ${prev}` : prev);
+    }
+  };
+  for (const l of lines) {
+    if (l === prev) count++;
+    else {
+      flush();
+      prev = l;
+      count = 1;
+    }
+  }
+  flush();
+  return out.join('\n');
+}
+
+const revText = (ctx: Ctx, stdin: string | null): string =>
+  (utilLines(ctx, stdin) ?? []).map((l) => [...l].reverse().join('')).join('\n');
+
+// Expand tr-style ranges: "a-z0-9" → "abc…z012…9".
+function trExpand(spec: string): string {
+  let out = '';
+  for (let i = 0; i < spec.length; i++) {
+    if (spec[i + 1] === '-' && i + 2 < spec.length) {
+      const from = spec.charCodeAt(i);
+      const to = spec.charCodeAt(i + 2);
+      for (let c = from; c <= to; c++) out += String.fromCharCode(c);
+      i += 2;
+    } else {
+      out += spec[i];
+    }
+  }
+  return out;
+}
+
+function trText(ctx: Ctx, stdin: string | null): string {
+  const [fromSpec, toSpec] = ctx.args;
+  if (!fromSpec || !toSpec) return '';
+  const from = trExpand(fromSpec);
+  const to = trExpand(toSpec);
+  const map = new Map<string, string>();
+  for (let i = 0; i < from.length; i++) {
+    map.set(from[i], to[Math.min(i, to.length - 1)] ?? '');
+  }
+  const text = stdin ?? '';
+  return [...text.replace(/\n$/, '')].map((ch) => map.get(ch) ?? ch).join('');
+}
+
+// sed 's/foo/bar/[g]' — any delimiter, basic regex substitute.
+function sedText(ctx: Ctx, stdin: string | null): string {
+  const expr = ctx.args[0] ?? '';
+  const m = expr.match(/^s(.)((?:\\.|[^\\])*?)\1((?:\\.|[^\\])*?)\1(g?)$/);
+  if (!m) return '';
+  let re: RegExp;
+  try {
+    re = new RegExp(m[2], m[4] ? 'g' : '');
+  } catch {
+    return '';
+  }
+  const lines = utilLines(ctx, stdin, 1) ?? [];
+  return lines.map((l) => l.replace(re, m[3])).join('\n');
+}
+
+// Standalone runner for a text util: print its text() output (or usage).
+function utilRun(fn: (ctx: Ctx, stdin: string | null) => string, usage: string) {
+  return (ctx: Ctx) => {
+    const out = fn(ctx, null);
+    if (out === '') return printErr(`usage: ${usage}`);
+    print(<div className="whitespace-pre-wrap">{out}</div>);
+  };
+}
+
 // ---- vim -------------------------------------------------------------------
 const vimCommand: Command = {
   desc: 'Edit a file (modal editor — good luck exiting)',
@@ -749,6 +852,77 @@ export const COMMANDS: Record<string, Command> = {
     group: 'Filesystem',
     run: (ctx) => print(<div className="whitespace-pre-wrap">{wcText(ctx, null)}</div>),
     text: wcText
+  },
+
+  sort: {
+    desc: 'Sort lines (-r reverse, -n numeric, -u unique)',
+    usage: 'sort [-rnu] [file]',
+    group: 'Filesystem',
+    man: {
+      description:
+        'Sorts input lines. -r reverses, -n compares numerically, -u drops ' +
+        'adjacent duplicates after sorting. Shines in pipelines.',
+      examples: ['ls | sort -r', 'history | sort | uniq -c | sort -rn | head 5'],
+      seeAlso: ['uniq', 'head', 'tail']
+    },
+    run: utilRun(sortText, 'sort [-rnu] <file>  (or: ls | sort)'),
+    text: sortText
+  },
+
+  uniq: {
+    desc: 'Filter adjacent duplicate lines (-c counts)',
+    usage: 'uniq [-c] [file]',
+    group: 'Filesystem',
+    man: {
+      description:
+        'Collapses ADJACENT duplicate lines (sort first, like your ' +
+        'ancestors did). -c prefixes each line with its count.',
+      examples: ['history | sort | uniq -c | sort -rn', 'sort skills.md | uniq'],
+      seeAlso: ['sort', 'wc']
+    },
+    run: utilRun(uniqText, 'uniq [-c] <file>  (or: ... | uniq)'),
+    text: uniqText
+  },
+
+  rev: {
+    desc: 'Reverse each line character-wise',
+    usage: 'rev [file]',
+    group: 'Filesystem',
+    hidden: true,
+    run: utilRun(revText, 'rev <file>  (or: echo hello | rev)'),
+    text: revText
+  },
+
+  tr: {
+    desc: 'Translate characters (ranges supported)',
+    usage: 'tr <from> <to>',
+    group: 'Filesystem',
+    hidden: true,
+    man: {
+      description:
+        'Translates characters from one set to another, with a-z style ' +
+        'ranges. Pipe-only, like the real thing.',
+      examples: ['echo hello | tr a-z A-Z', 'cat about.md | tr aeiou _'],
+      seeAlso: ['sed', 'rev']
+    },
+    run: () => printErr('usage: echo text | tr a-z A-Z  (tr reads from a pipe)'),
+    text: trText
+  },
+
+  sed: {
+    desc: 'Stream editor (s/find/replace/ only)',
+    usage: "sed 's/foo/bar/[g]' [file]",
+    group: 'Filesystem',
+    man: {
+      description:
+        'The one sed command everyone actually uses: s///, with any ' +
+        'delimiter, regex patterns, and the g flag. Works on a file or ' +
+        'in a pipeline.',
+      examples: ["sed 's/Kubernetes/k8s/g' resume.md", "fortune | sed 's/^/> /'"],
+      seeAlso: ['tr', 'grep']
+    },
+    run: utilRun(sedText, "sed 's/foo/bar/g' <file>"),
+    text: sedText
   },
 
   fzf: {
