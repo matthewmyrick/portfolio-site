@@ -1,10 +1,16 @@
+import type { ReactNode } from 'react';
 import { useStore } from '../store';
 import { runCommand } from '../executor';
-import { crashPodName } from './cluster';
 
 // `tour` — autopilot for visitors who will never type. Commands are typed
 // character by character into the real input (live highlighting and all),
-// executed, and paced. ANY user key/click/touch cancels instantly.
+// executed, and paced; narration lines set the scene between chapters.
+// ANY user key/click/touch cancels instantly.
+//
+// Structure: who Matthew is (the documents ARE the résumé) → the fun
+// configured extras (theme flipped and flipped BACK, the train) → a live
+// Kubernetes incident that the tour deliberately does NOT fix. That part
+// is the visitor's job.
 
 let active = false;
 
@@ -13,27 +19,67 @@ export const tourIsActive = () => active;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const st = () => useStore.getState();
 
-interface Step {
-  cmd: () => string;
-  pause: number; // ms to linger on the output (jobs are awaited on top)
-}
+type Step = { say: () => ReactNode; pause?: number } | { cmd: () => string; pause: number };
 
-const STEPS: Step[] = [
-  { cmd: () => 'about', pause: 2600 },
-  { cmd: () => 'ls', pause: 1400 },
-  { cmd: () => 'cat resume.md | grep -i kubernetes', pause: 2200 },
-  { cmd: () => 'fortune | cowsay', pause: 2400 },
-  { cmd: () => 'sl', pause: 800 }, // the train blocks via the job system; we wait it out
-  { cmd: () => 'theme dracula', pause: 1600 },
-  { cmd: () => 'kubectl get pods', pause: 2600 },
-  { cmd: () => `kubectl logs ${crashPodName()}`, pause: 3000 },
-  {
-    cmd: () => 'kubectl set resources deployment portfolio-web --limits=memory=256Mi',
-    pause: 2000
-  },
-  { cmd: () => 'kubectl rollout status deployment/portfolio-web', pause: 7500 },
-  { cmd: () => 'kubectl get pods', pause: 2200 }
-];
+function steps(originalTheme: string): Step[] {
+  return [
+    {
+      say: () => (
+        <div className="t-dim mt-1">
+          🏡 <span className="t-accent font-bold">Welcome to my homelab.</span> This site is served
+          from a real machine in my NYC apartment — and this terminal is real enough to prove it.
+          Sit back, I'll drive. <span className="t-yellow">Press any key</span> to take the wheel.
+        </div>
+      ),
+      pause: 3000
+    },
+    { cmd: () => 'whoami', pause: 1200 },
+    { cmd: () => 'about', pause: 3400 },
+    {
+      say: () => (
+        <div className="t-dim mt-1">
+          Everything about me lives in this filesystem — look around like you would on any box:
+        </div>
+      ),
+      pause: 1600
+    },
+    { cmd: () => 'ls', pause: 1800 },
+    { cmd: () => 'cat resume.md | grep -i kubernetes', pause: 2600 },
+    { cmd: () => 'ls projects/', pause: 1800 },
+    { cmd: () => 'cat projects/README.md', pause: 2800 },
+    { cmd: () => 'experience hadrius-ai', pause: 4200 },
+    {
+      say: () => (
+        <div className="t-dim mt-1">
+          grep it, <span className="t-green">fzf</span> it, <span className="t-green">vim</span> it
+          (read-only — nice try), or <span className="t-green">open resume.pdf</span> for the real
+          thing. Now for the toys:
+        </div>
+      ),
+      pause: 2200
+    },
+    { cmd: () => 'fortune | cowsay', pause: 2600 },
+    { cmd: () => 'theme dracula', pause: 2000 },
+    { cmd: () => 'sl', pause: 800 }, // the train blocks via the job system; we wait it out
+    { cmd: () => `theme ${originalTheme}`, pause: 1400 }, // and we put it back. manners.
+    {
+      say: () => <div className="t-dim mt-1">One more thing — let's check on the cluster:</div>,
+      pause: 1600
+    },
+    { cmd: () => 'kubectl get pods', pause: 2000 },
+    {
+      say: () => (
+        <div className="mt-1">
+          <span className="t-red font-bold">
+            🚨 Hold on — one of those pods is CrashLoopBackOff.
+          </span>{' '}
+          <span className="t-dim">A live incident, right now, on this very cluster.</span>
+        </div>
+      ),
+      pause: 2400
+    }
+  ];
+}
 
 export async function startTour(): Promise<void> {
   if (active) return;
@@ -69,31 +115,31 @@ export async function startTour(): Promise<void> {
     while (active && Date.now() - t0 < pause) await sleep(100);
   };
 
-  st().print(
-    <div className="t-dim mt-1">
-      🎬 Sit back — the terminal will drive. <span className="t-yellow">Press any key</span> to take
-      the wheel at any time.
-    </div>
-  );
-  await sleep(1600);
-
   try {
-    for (const step of STEPS) {
+    for (const step of steps(originalTheme)) {
       if (!active) break;
-      if (!(await typeAndRun(step.cmd()))) break;
-      await settle(step.pause);
+      if ('say' in step) {
+        st().print(step.say());
+        await settle(step.pause ?? 1800);
+      } else {
+        if (!(await typeAndRun(step.cmd()))) break;
+        await settle(step.pause);
+      }
     }
 
     st().setCommand('', 0);
-    st().setTheme(originalTheme);
+    st().setTheme(originalTheme); // safety net (the tour also types it back)
     if (active) {
       st().print(
         <div className="mt-2 max-w-2xl space-y-1">
-          <div className="t-accent font-bold">🎬 That's the tour — now it's your turn.</div>
+          <div className="t-accent font-bold">
+            🎬 That's the tour — the incident is yours now, SRE.
+          </div>
           <div className="t-dim">
-            Try <span className="t-green">help -a</span> for everything (easter eggs included),{' '}
-            <span className="t-green">vim about.md</span> if you're brave, or{' '}
-            <span className="t-green">hire</span> if you're hiring.
+            Start with <span className="t-green">kubectl logs &lt;pod&gt;</span> or{' '}
+            <span className="t-green">kubectl describe pod &lt;pod&gt;</span> — fix the limit and
+            watch it roll out. Everything else: <span className="t-green">help -a</span>, and{' '}
+            <span className="t-green">hire</span> if you like what you see.
           </div>
         </div>
       );
