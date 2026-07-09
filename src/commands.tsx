@@ -1689,6 +1689,35 @@ export const COMMANDS: Record<string, Command> = {
       args.length === 0 ? ['log', 'status', 'blame', 'push', 'pull', 'checkout', 'diff'] : [],
     run: ({ args, flags }) => {
       const sub = (args[0] ?? '').toLowerCase();
+      if (!sub || flags.h || flags.help) {
+        const cmds: [string, string][] = [
+          ['log', 'show the real commit history of this repo (live)'],
+          ['log --oneline', 'same, one line per commit'],
+          ['status', 'the state of the working tree (spoiler: clean)'],
+          ['blame <file>', 'find out who wrote each line (spoiler: matthew)'],
+          ['diff', 'changes against HEAD'],
+          ['push', 'publish your work'],
+          ['pull', 'fetch the latest']
+        ];
+        return print(
+          <div className="max-w-xl">
+            <div>
+              usage: <span className="t-green">git</span>{' '}
+              <span className="t-dim">&lt;command&gt;</span>
+            </div>
+            <div className="t-dim mt-1 mb-1">These are the git commands available here:</div>
+            {cmds.map(([c, d]) => (
+              <div key={c} className="flex gap-3">
+                <span className="t-green w-40 shrink-0">{c}</span>
+                <span className="t-dim">{d}</span>
+              </div>
+            ))}
+            <div className="t-dim mt-1">
+              See <span className="t-green">man git</span> for the honest version.
+            </div>
+          </div>
+        );
+      }
       switch (sub) {
         case 'log':
           return print(<GitLog oneline={!!flags.oneline} />);
@@ -1745,10 +1774,8 @@ export const COMMANDS: Record<string, Command> = {
           );
         case 'diff':
           return print(<span className="t-dim">(no changes — see git status. serenity.)</span>);
-        case '':
-          return printErr("usage: git <log|status|blame|push|pull|diff>  — try 'git log'");
         default:
-          return printErr(`git: '${sub}' is not a git command. See 'git'.`);
+          return printErr(`git: '${sub}' is not a git command. See 'git -h'.`);
       }
     }
   },
