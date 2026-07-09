@@ -61,6 +61,9 @@ export interface Command {
   // Extra man-page content: long DESCRIPTION text and EXAMPLES / SEE ALSO.
   // Every command gets a generated page from desc/usage; this enriches it.
   man?: { description?: string; examples?: string[]; seeAlso?: string[] };
+  // Subcommand candidates for tab-completion / ghost suggestions, given the
+  // args typed so far (partial token excluded). Falls back to paths if absent.
+  complete?: (args: string[]) => string[];
 }
 
 const APP_START = Date.now();
@@ -641,6 +644,7 @@ export const COMMANDS: Record<string, Command> = {
       examples: ['help', 'help -a'],
       seeAlso: ['man', 'about']
     },
+    complete: (args) => (args.length === 0 ? ['-a'] : []),
     run: ({ flags }) => print(helpOutput(!!flags.a || !!flags.all))
   },
 
@@ -960,6 +964,7 @@ export const COMMANDS: Record<string, Command> = {
       examples: ['man ls', 'man fzf', 'man man'],
       seeAlso: ['help', 'less']
     },
+    complete: (args) => (args.length === 0 ? Object.keys(COMMANDS) : []),
     run: ({ args }) => {
       if (!args.length) {
         return printErr("What manual page do you want?\nFor example, try 'man ls'.");
@@ -1063,6 +1068,31 @@ export const COMMANDS: Record<string, Command> = {
         'kubectl rollout status deployment/portfolio-web'
       ],
       seeAlso: ['vim', 'htop', 'ssh']
+    },
+    complete: (args) => {
+      if (args.length === 0) return ['get', 'logs', 'describe', 'delete', 'set', 'edit', 'rollout'];
+      const sub = args[0].toLowerCase();
+      const podNames = () => pods().map((p) => p.name);
+      if (sub === 'get' && args.length === 1)
+        return ['pods', 'deployments', 'events', 'deployment'];
+      if (sub === 'get' && args[1] === 'deployment') return ['portfolio-web'];
+      if (sub === 'logs') return args.length === 1 ? podNames() : [];
+      if (sub === 'describe') {
+        if (args.length === 1) return ['pod', 'deployment'];
+        return args[1] === 'deployment' ? ['portfolio-web'] : podNames();
+      }
+      if (sub === 'delete') return args.length === 1 ? ['pod'] : podNames();
+      if (sub === 'edit') return args.length === 1 ? ['deployment'] : ['portfolio-web'];
+      if (sub === 'set') {
+        if (args.length === 1) return ['resources'];
+        if (args.length === 2) return ['deployment'];
+        if (args.length === 3) return ['portfolio-web'];
+        return ['--limits=memory=256Mi'];
+      }
+      if (sub === 'rollout') {
+        return args.length === 1 ? ['status', 'restart'] : ['deployment/portfolio-web'];
+      }
+      return [];
     },
     run: ({ args, flags, rest }) => {
       touchCluster();
@@ -1597,6 +1627,7 @@ export const COMMANDS: Record<string, Command> = {
       examples: ['systemctl status portfolio', 'systemctl restart portfolio'],
       seeAlso: ['sudo', 'neofetch', 'crontab']
     },
+    complete: (args) => (args.length === 0 ? ['status', 'restart'] : ['portfolio']),
     run: ({ args }) => {
       const op = (args[0] ?? '').toLowerCase();
       const unit = (args[1] ?? '').replace(/\.service$/, '').toLowerCase();
@@ -1770,6 +1801,7 @@ export const COMMANDS: Record<string, Command> = {
       examples: ['ssh guestbox', 'exit'],
       seeAlso: ['exit', 'whoami']
     },
+    complete: (args) => (args.length === 0 ? ['guestbox'] : []),
     run: ({ args }) => {
       if (!args.length) return printErr('usage: ssh <host>  (hint: ssh guestbox)');
       const target = args[0].replace(/^visitor@/, '').toLowerCase();
@@ -1955,6 +1987,7 @@ export const COMMANDS: Record<string, Command> = {
     desc: 'Pick a color theme (interactive)',
     usage: 'theme [name]',
     group: 'Customize',
+    complete: (args) => (args.length === 0 ? Object.keys(THEMES) : []),
     run: ({ args }) => {
       if (!args.length) return S().setOverlay('theme'); // interactive picker
       const name = args[0];
@@ -1972,6 +2005,7 @@ export const COMMANDS: Record<string, Command> = {
     desc: 'Pick a terminal style (interactive)',
     usage: 'term [name]',
     group: 'Customize',
+    complete: (args) => (args.length === 0 ? Object.keys(TERMINALS) : []),
     run: ({ args }) => {
       if (!args.length) return S().setOverlay('term'); // interactive picker
       const name = args[0];

@@ -1,9 +1,21 @@
 import { resolvePath, getNode, listDir } from './fsops';
-import { COMMAND_NAMES } from '../commands';
+import { COMMANDS, COMMAND_NAMES } from '../commands';
 import { shell } from './shell';
 
 // Commands + session aliases — everything valid in command position.
 const commandNames = () => [...COMMAND_NAMES, ...shell.aliases.keys()];
+
+// Subcommand candidates for the token being typed, from the command's
+// optional complete() hook. `tokens` is the current segment split on spaces;
+// returns null when the command has no opinions here.
+function subCandidates(tokens: string[], endsWithSpace: boolean): string[] | null {
+  const cmd = COMMANDS[(tokens[0] ?? '').toLowerCase()];
+  if (!cmd?.complete) return null;
+  const argsSoFar = endsWithSpace ? tokens.slice(1) : tokens.slice(1, -1);
+  const partial = endsWithSpace ? '' : (tokens[tokens.length - 1] ?? '');
+  const cands = cmd.complete(argsSoFar).filter((c) => c.startsWith(partial));
+  return cands.length ? cands.sort() : null;
+}
 
 export interface CompleteResult {
   value: string;
@@ -45,6 +57,18 @@ export function complete(input: string, cwd: string): CompleteResult {
     const lcp = longestCommonPrefix(matches);
     const value = before + lcp;
     return { value, cursor: value.length, list: lcp === partial ? matches : [] };
+  }
+
+  // Subcommand completion (kubectl get po<tab>, theme <tab>, …).
+  const subs = subCandidates(tokens, endsWithSpace);
+  if (subs) {
+    if (subs.length === 1) {
+      const value = before + subs[0] + ' ';
+      return { value, cursor: value.length, list: [] };
+    }
+    const lcp = longestCommonPrefix(subs);
+    const value = before + lcp;
+    return { value, cursor: value.length, list: lcp === partial ? subs : [] };
   }
 
   // Path completion on the last token.
@@ -95,6 +119,14 @@ export function suggest(input: string, cwd: string): string | null {
 
   const partial = tokens[tokens.length - 1];
   const before = seg.slice(0, seg.length - partial.length);
+
+  // Ghost suggestion for subcommands too.
+  const subs = subCandidates(tokens, false);
+  if (subs) {
+    const hit = subs.find((c) => c !== partial);
+    return hit ? prefix + lead + before + hit : null;
+  }
+
   const slash = partial.lastIndexOf('/');
   const dirPart = slash === -1 ? '' : partial.slice(0, slash + 1);
   const basePart = slash === -1 ? partial : partial.slice(slash + 1);
