@@ -1744,6 +1744,81 @@ export const COMMANDS: Record<string, Command> = {
     }
   },
 
+  hire: {
+    desc: "Let's talk — contact + resume in one place",
+    group: 'Matthew',
+    man: {
+      description:
+        'The shortcut for recruiters and founders: who I am in one line, ' +
+        'what I do, and every way to reach me — email, the real resume ' +
+        'PDF, LinkedIn, GitHub.',
+      examples: ['hire', 'email', 'open resume.pdf'],
+      seeAlso: ['about', 'contact', 'email']
+    },
+    run: () =>
+      print(
+        <div className="max-w-2xl space-y-3">
+          <div>
+            <div className="t-accent text-base font-bold">Let's build something reliable.</div>
+            <div className="t-dim">
+              Infrastructure / Platform Engineer · SRE Lead · NYC (remote-friendly)
+            </div>
+          </div>
+          <div>
+            I run Kubernetes fleets at scale, build observability and deploy pipelines, and keep
+            things up when it matters — currently founding infra lead at Hadrius AI (
+            <span className="t-orange font-semibold">YC</span>). This entire site (self-hosted,
+            tunneled, zero-downtime deploys from my apartment) is the live demo.
+          </div>
+          <div className="space-y-0.5">
+            <div className="flex gap-3">
+              <span className="t-green w-28 shrink-0">email</span>
+              <a href="mailto:matthewmyrick2@gmail.com" className="t-cyan underline">
+                matthewmyrick2@gmail.com
+              </a>
+            </div>
+            <div className="flex gap-3">
+              <span className="t-green w-28 shrink-0">resume</span>
+              <a
+                href="/resume.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="t-cyan underline"
+              >
+                the real PDF (opens in a new tab)
+              </a>
+            </div>
+            <div className="flex gap-3">
+              <span className="t-green w-28 shrink-0">linkedin</span>
+              <a
+                href="https://www.linkedin.com/in/mattmyrick/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="t-cyan underline"
+              >
+                linkedin.com/in/mattmyrick
+              </a>
+            </div>
+            <div className="flex gap-3">
+              <span className="t-green w-28 shrink-0">github</span>
+              <a
+                href="https://github.com/matthewmyrick"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="t-cyan underline"
+              >
+                github.com/matthewmyrick
+              </a>
+            </div>
+          </div>
+          <div className="t-dim">
+            Fastest path: run <span className="t-green">email</span> — it opens your mail client
+            already addressed.
+          </div>
+        </div>
+      )
+  },
+
   game: {
     desc: 'Play a number-guessing game',
     group: 'Matthew',
@@ -1823,7 +1898,8 @@ function aboutCard(): ReactNode {
     ['education', 'where I studied'],
     ['resume', 'the one-page summary'],
     ['open resume.pdf', 'the real PDF, in a new tab'],
-    ['contact', 'how to reach me']
+    ['contact', 'how to reach me'],
+    ['hire', "let's talk"]
   ];
   return (
     <div className="max-w-2xl space-y-3">
