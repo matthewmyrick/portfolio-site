@@ -34,6 +34,28 @@ export function Terminal() {
     if (useStore.getState().lines.length === 0) startSession();
   }, []);
 
+  // Nudge idle first-time visitors toward the guided tour: 45s with no
+  // typed command → a dim hint. Any keypress before then cancels it.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const s = useStore.getState();
+      if (s.history.length === 0 && !s.overlay && !s.job) {
+        s.print(
+          <div className="t-dim mt-2">
+            psst — not sure where to start? type <span className="t-green">tour</span> and the
+            terminal drives itself.
+          </div>
+        );
+      }
+    }, 45000);
+    const cancel = () => clearTimeout(t);
+    window.addEventListener('keydown', cancel, { once: true, capture: true });
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('keydown', cancel, true);
+    };
+  }, []);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [lines]);
