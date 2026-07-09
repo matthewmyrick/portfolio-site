@@ -28,6 +28,12 @@ const NO_GAME: GameState = { active: false, target: 0, attempts: 0, max: 7 };
 let _id = 0;
 const nid = () => ++_id;
 
+// Scrollback cap per pane — generous, but a runaway loop (or a very
+// enthusiastic visitor) can't grow memory forever.
+const MAX_SCROLLBACK = 5000;
+const capped = (lines: Line[]): Line[] =>
+  lines.length > MAX_SCROLLBACK ? lines.slice(-MAX_SCROLLBACK) : lines;
+
 // One tmux-style pane = one independent session (scrollback, cwd, prompt,
 // in-progress command, game). Theme/history/host/overlays are shared.
 export interface PaneState {
@@ -151,14 +157,20 @@ export const useStore = create<Store>()(
         pushInput: (node) =>
           set((s) => {
             const group = s.group + 1;
-            return sync(s, { group, lines: [...s.lines, { id: nid(), group, node, input: true }] });
+            return sync(s, {
+              group,
+              lines: capped([...s.lines, { id: nid(), group, node, input: true }])
+            });
           }),
         print: (node) =>
-          set((s) => sync(s, { lines: [...s.lines, { id: nid(), group: s.group, node }] })),
+          set((s) => sync(s, { lines: capped([...s.lines, { id: nid(), group: s.group, node }]) })),
         printAll: (nodes) =>
           set((s) =>
             sync(s, {
-              lines: [...s.lines, ...nodes.map((node) => ({ id: nid(), group: s.group, node }))]
+              lines: capped([
+                ...s.lines,
+                ...nodes.map((node) => ({ id: nid(), group: s.group, node }))
+              ])
             })
           ),
         clearLines: () => set((s) => sync(s, { lines: [] })),

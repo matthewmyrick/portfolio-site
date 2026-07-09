@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // `git log` — the REAL commit history of this repo, fetched live from the
 // public GitHub API (the repo has no .git at runtime; this is better anyway:
@@ -36,6 +36,13 @@ async function fetchCommits(): Promise<Commit[]> {
 export function GitLog({ oneline }: { oneline?: boolean }) {
   const [commits, setCommits] = useState<Commit[] | null>(cache);
   const [error, setError] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  // The log arrives async (API fetch) after the terminal already scrolled —
+  // follow it down once it renders.
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: 'end' });
+  }, [commits, error]);
 
   useEffect(() => {
     if (cache) return;
@@ -61,6 +68,7 @@ export function GitLog({ oneline }: { oneline?: boolean }) {
             <span className="t-yellow">{c.hash}</span> {c.subject}
           </div>
         ))}
+        <div ref={endRef} />
       </div>
     );
   }
@@ -80,6 +88,7 @@ export function GitLog({ oneline }: { oneline?: boolean }) {
       <div className="t-dim">
         (latest 20 — live from the GitHub API, because the repo is public)
       </div>
+      <div ref={endRef} />
     </div>
   );
 }

@@ -1645,12 +1645,12 @@ export const COMMANDS: Record<string, Command> = {
     man: {
       description:
         'Renders a scannable QR code with half-block characters, dark-on-' +
-        'light so cameras cooperate. Defaults to this site; linkedin, ' +
+        'light so cameras cooperate. Defaults to my LinkedIn; site, ' +
         'github, and email are built in, or pass any URL.',
       examples: ['qr', 'qr linkedin', 'qr https://example.com'],
       seeAlso: ['hire', 'contact', 'open']
     },
-    complete: (args) => (args.length === 0 ? ['linkedin', 'github', 'email'] : []),
+    complete: (args) => (args.length === 0 ? ['linkedin', 'site', 'github', 'email'] : []),
     run: ({ args }) => {
       const targets: Record<string, { data: string; label: string }> = {
         site: { data: 'https://matthewjmyrick.com', label: 'this site' },
@@ -1658,7 +1658,7 @@ export const COMMANDS: Record<string, Command> = {
         github: { data: 'https://github.com/matthewmyrick', label: 'GitHub' },
         email: { data: 'mailto:matthewmyrick2@gmail.com', label: 'email me' }
       };
-      const key = (args[0] ?? 'site').toLowerCase();
+      const key = (args[0] ?? 'linkedin').toLowerCase();
       let target = targets[key];
       if (!target && /^https?:\/\//i.test(args[0] ?? '')) {
         if (args[0].length > 120) return printErr('qr: URL too long (keep it under 120 chars)');
@@ -2014,6 +2014,7 @@ export const COMMANDS: Record<string, Command> = {
     run: () => {
       if (S().panes.length === 1) {
         S().splitPane('v');
+        printWelcome();
         return;
       }
       print(
@@ -2496,6 +2497,12 @@ export function startSession(): void {
   resetShellSession();
   const rc = getNode(HOME + '/.bashrc');
   if (rc && rc.type === 'file') rc.content.split('\n').forEach(applyRcLine);
+  printWelcome();
+}
+
+// The tagline + welcome block — shown at session start and in fresh tmux panes.
+export function printWelcome(): void {
+  const st = S();
   st.print(<div className="t-accent text-base font-bold">There's no place like 127.0.0.1 🏡</div>);
   st.print(
     <div className="mt-1">
