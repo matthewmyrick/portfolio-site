@@ -39,9 +39,10 @@ export function GitLog({ oneline }: { oneline?: boolean }) {
   const endRef = useRef<HTMLDivElement>(null);
 
   // The log arrives async (API fetch) after the terminal already scrolled —
-  // follow it down once it renders.
+  // scroll the whole pane to its true bottom so the prompt below stays visible.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' });
+    const el = endRef.current?.closest('[data-pane-id]') as HTMLElement | null;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [commits, error]);
 
   useEffect(() => {

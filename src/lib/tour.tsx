@@ -29,7 +29,7 @@ function steps(originalTheme: string): Step[] {
         <div className="t-dim mt-1">
           🏡 <span className="t-accent font-bold">Welcome to my homelab.</span> This site is served
           from a real machine in my NYC apartment — and this terminal is real enough to prove it.
-          Sit back, I'll drive. <span className="t-yellow">Press any key</span> to take the wheel.
+          Sit back, I'll drive. <span className="t-yellow">Esc or Ctrl+C</span> takes the wheel.
         </div>
       ),
       pause: 3000
@@ -54,10 +54,13 @@ function steps(originalTheme: string): Step[] {
       pause: 1600
     },
     { cmd: () => 'ls', pause: 1800 },
-    { cmd: () => 'cat resume.md | grep -i kubernetes', pause: 2600 },
-    { cmd: () => 'ls projects/', pause: 1800 },
-    { cmd: () => 'cat projects/README.md', pause: 2800 },
+    { cmd: () => 'ls experience/', pause: 1600 },
     { cmd: () => 'experience hadrius-ai', pause: 4200 },
+    { cmd: () => 'cat skills.md', pause: 3200 },
+    { cmd: () => 'cat education.md', pause: 2400 },
+    { cmd: () => 'ls projects/', pause: 1600 },
+    { cmd: () => 'cat projects/README.md', pause: 2600 },
+    { cmd: () => 'cat resume.md | grep -i kubernetes', pause: 2400 },
     {
       say: () => (
         <div className="t-dim mt-1">
@@ -99,12 +102,17 @@ export async function startTour(): Promise<void> {
   active = true;
   const originalTheme = st().theme;
 
-  const onUser = () => {
-    active = false;
+  st().setTour(true);
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' || (e.ctrlKey && (e.key === 'c' || e.key === 'C'))) {
+      active = false;
+      return;
+    }
+    // The tour has the keyboard: block typing (clicking around is fine).
+    e.preventDefault();
+    e.stopPropagation();
   };
-  window.addEventListener('keydown', onUser, true);
-  window.addEventListener('mousedown', onUser, true);
-  window.addEventListener('touchstart', onUser, true);
+  window.addEventListener('keydown', onKey, true);
 
   const typeAndRun = async (cmd: string): Promise<boolean> => {
     for (const ch of cmd) {
@@ -158,13 +166,14 @@ export async function startTour(): Promise<void> {
       );
     } else {
       st().print(
-        <div className="t-dim mt-1">🎬 Tour cancelled — it's all yours. (Try `help`.)</div>
+        <div className="t-dim mt-1">
+          🎬 Tour cancelled — it's all yours. (Try `help`, or `tour` to restart.)
+        </div>
       );
     }
   } finally {
     active = false;
-    window.removeEventListener('keydown', onUser, true);
-    window.removeEventListener('mousedown', onUser, true);
-    window.removeEventListener('touchstart', onUser, true);
+    st().setTour(false);
+    window.removeEventListener('keydown', onKey, true);
   }
 }

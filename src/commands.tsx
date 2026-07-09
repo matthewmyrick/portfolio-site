@@ -2334,6 +2334,10 @@ export const COMMANDS: Record<string, Command> = {
             Fastest path: run <span className="t-green">email</span> — it opens your mail client
             already addressed.
           </div>
+          <div className="t-dim">
+            Prefer paper? <span className="t-green">open resume.pdf</span> for the PDF, or just{' '}
+            <span className="t-green">resume</span> for the summary.
+          </div>
         </div>
       )
   },

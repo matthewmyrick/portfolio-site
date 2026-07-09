@@ -89,6 +89,8 @@ interface State {
   // A foreground "job" (animation like sl/ping). While set, the input line
   // is hidden and Ctrl+C cancels it — like a real blocking process.
   job: string | null;
+  // Autopilot running (shows the TOUR MODE badge; typing is blocked).
+  tour: boolean;
   panes: PaneState[];
   activePane: number; // pane id
   splitDir: 'v' | 'h'; // orientation of the first split
@@ -112,6 +114,7 @@ interface Actions {
   setOverlay: (o: OverlayKind) => void;
   setHost: (h: string) => void;
   setJob: (j: string | null) => void;
+  setTour: (v: boolean) => void;
   splitPane: (dir: 'v' | 'h') => void;
   closePane: () => void;
   focusPane: (delta: 1 | -1) => void;
@@ -147,6 +150,7 @@ export const useStore = create<Store>()(
         overlay: null,
         host: 'portfolio',
         job: null,
+        tour: false,
         panes: [first],
         activePane: first.id,
         splitDir: 'v',
@@ -194,6 +198,7 @@ export const useStore = create<Store>()(
         setOverlay: (o) => set({ overlay: o }),
         setHost: (h) => set({ host: h }),
         setJob: (j) => set({ job: j }),
+        setTour: (v) => set({ tour: v }),
 
         // ---- tmux-style panes ------------------------------------------------
         splitPane: (dir) =>
