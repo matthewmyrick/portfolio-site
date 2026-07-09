@@ -2497,6 +2497,7 @@ export function startSession(): void {
       <div className="t-dim">
         Run <span className="t-green font-bold">about</span> (or{' '}
         <span className="t-green">cat about.md</span>) to learn about me,{' '}
+        <span className="t-green">cat resume.pdf</span> for the résumé,{' '}
         <span className="t-green font-bold">help</span> for all commands — or just type{' '}
         <span className="t-green font-bold">tour</span> and watch.
       </div>
