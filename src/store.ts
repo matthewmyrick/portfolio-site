@@ -40,6 +40,8 @@ interface State {
   term: TermType;
   opacity: number;
   game: GameState;
+  // Hidden-input mode (su password prompt): input renders no echo at all.
+  secretInput: boolean;
   overlay: OverlayKind;
   host: string; // which "machine" we're on (ssh guestbox changes it)
   // A foreground "job" (animation like sl/ping). While set, the input line
@@ -61,6 +63,7 @@ interface Actions {
   pushHistory: (cmd: string) => void;
   setHistoryIndex: (n: number) => void;
   setGame: (g: GameState) => void;
+  setSecretInput: (v: boolean) => void;
   setOverlay: (o: OverlayKind) => void;
   setHost: (h: string) => void;
   setJob: (j: string | null) => void;
@@ -82,6 +85,7 @@ export const useStore = create<Store>()(
       term: DEFAULT_TERM,
       opacity: 0.85,
       game: NO_GAME,
+      secretInput: false,
       overlay: null,
       host: 'portfolio',
       job: null,
@@ -116,6 +120,7 @@ export const useStore = create<Store>()(
         }),
       setHistoryIndex: (n) => set({ historyIndex: n }),
       setGame: (g) => set({ game: g }),
+      setSecretInput: (v) => set({ secretInput: v }),
       setOverlay: (o) => set({ overlay: o }),
       setHost: (h) => set({ host: h }),
       setJob: (j) => set({ job: j })
