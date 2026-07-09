@@ -1410,6 +1410,124 @@ export const COMMANDS: Record<string, Command> = {
     }
   },
 
+  systemctl: {
+    desc: 'Control the systemd system (one unit, lovingly)',
+    usage: 'systemctl status portfolio',
+    group: 'Session',
+    hidden: true,
+    man: {
+      description:
+        'Query the state of the only unit that matters here. status shows ' +
+        'health and recent journal lines; restart requires privileges you ' +
+        'do not have (and the uptime streak is sacred anyway).',
+      examples: ['systemctl status portfolio', 'systemctl restart portfolio'],
+      seeAlso: ['sudo', 'neofetch', 'crontab']
+    },
+    run: ({ args }) => {
+      const op = (args[0] ?? '').toLowerCase();
+      const unit = (args[1] ?? '').replace(/\.service$/, '').toLowerCase();
+      if (!op) {
+        return print(
+          <div className="whitespace-pre-wrap">
+            {'usage: systemctl status <unit>\n       systemctl restart <unit>   (bold of you)'}
+          </div>
+        );
+      }
+      if (unit && unit !== 'portfolio') {
+        return printErr(`Unit ${args[1]}.service could not be found.`);
+      }
+      if (op === 'status') {
+        if (!unit) return printErr('usage: systemctl status portfolio');
+        const secs = Math.floor((Date.now() - APP_START) / 1000);
+        const mm = Math.floor(secs / 60);
+        const since = new Date(APP_START).toString().slice(0, 24);
+        return print(
+          <div className="whitespace-pre-wrap">
+            <div>
+              <span className="t-green font-bold">●</span>{' '}
+              <span className="font-bold">portfolio.service</span>
+              <span className="t-dim"> - Terminal Portfolio (self-hosted, apartment-grade)</span>
+            </div>
+            <div>
+              {'     Loaded: '}
+              <span className="t-dim">loaded (/etc/systemd/system/portfolio.service; enabled)</span>
+            </div>
+            <div>
+              {'     Active: '}
+              <span className="t-green font-bold">active (running)</span>
+              <span className="t-dim">
+                {` since ${since}; ${mm > 0 ? `${mm}min` : `${secs}s`} ago (this session)`}
+              </span>
+            </div>
+            <div>{'   Main PID: 1337 (nginx)'}</div>
+            <div>
+              {'      Tasks: '}1 <span className="t-dim">(limit: hopes)</span>
+            </div>
+            <div>{'     Memory: 47.0M'}</div>
+            <div>
+              {'        CPU: '}
+              <span className="t-dim">mostly vibes</span>
+            </div>
+            <div className="t-dim mt-1">
+              {`Jul 08 09:17:38 apollo cloudflared[420]: Registered tunnel connection (ewr08)\n` +
+                `Jul 08 09:17:38 apollo nginx[1337]: ready to serve\n` +
+                `Jul 08 14:02:11 apollo portfolio[1]: visitor connected. showtime.`}
+            </div>
+          </div>
+        );
+      }
+      if (['restart', 'stop', 'kill', 'disable'].includes(op)) {
+        printErr(`Failed to ${op} portfolio.service: Access denied (the uptime streak is sacred)`);
+        return print(
+          <span className="t-dim">
+            See <span className="t-green">sudo</span> if you insist. That will also not work.
+          </span>
+        );
+      }
+      printErr(`Unknown command verb ${op}.`);
+    }
+  },
+
+  crontab: {
+    desc: 'Maintain crontab files (view mine)',
+    usage: 'crontab -l',
+    group: 'Session',
+    hidden: true,
+    man: {
+      description: 'Lists the scheduled jobs on this machine. The schedule is honest.',
+      examples: ['crontab -l'],
+      seeAlso: ['systemctl', 'date']
+    },
+    run: ({ flags }) => {
+      if (!flags.l) return printErr('usage: crontab -l  (you may look, not touch)');
+      print(
+        <div className="leading-relaxed whitespace-pre">
+          <div className="t-dim"># m h dom mon dow command</div>
+          <div>
+            <span className="t-yellow">{'0 3 * * *        '}</span>/usr/local/bin/backup.sh{' '}
+            <span className="t-dim">&& /usr/bin/pray</span>
+          </div>
+          <div>
+            <span className="t-yellow">{'@reboot          '}</span>echo{' '}
+            <span className="t-string">"there's no place like 127.0.0.1"</span>
+          </div>
+          <div>
+            <span className="t-yellow">{'0 9 * * 1-5      '}</span>/usr/bin/coffee{' '}
+            <span className="t-dim">--double --no-sugar</span>
+          </div>
+          <div>
+            <span className="t-yellow">{'*/5 * * * *      '}</span>
+            check-if-site-still-up.sh <span className="t-dim"># it is. it always is.</span>
+          </div>
+          <div>
+            <span className="t-yellow">{'0 0 1 1 *        '}</span>rotate-secrets.sh{' '}
+            <span className="t-dim"># new year, new hunter2</span>
+          </div>
+        </div>
+      );
+    }
+  },
+
   su: {
     desc: 'Switch user (requires the password)',
     usage: 'su [user]',
