@@ -312,7 +312,42 @@ function expandBangs(s: string): { out: string } | { error: string } {
   return { out };
 }
 
+// su password prompt state (module-level: the password itself never touches
+// the store, the echo, or history).
+let suTries = 0;
+
+export function startSu(): void {
+  suTries = 0;
+  S().setSecretInput(true);
+}
+
+function processSuInput(): void {
+  const st = S();
+  // Echo only the label — never the typed secret.
+  st.print(<span className="t-dim">Password:</span>);
+  suTries++;
+  if (suTries >= 3) {
+    st.setSecretInput(false);
+    printErr('su: Authentication failure');
+    print(
+      <span className="t-dim">
+        (hint: it is not <span className="t-string">'hunter2'</span>. stop.)
+      </span>
+    );
+    shell.lastExit = 1;
+    return;
+  }
+  printErr('su: Authentication failure');
+}
+
 export function runCommand(raw: string): void {
+  const st0 = S();
+  // Password prompt swallows everything — even empty input — with no echo.
+  if (st0.secretInput) {
+    processSuInput();
+    return;
+  }
+
   const trimmed = raw.trim();
   if (!trimmed) return;
   const st = S();

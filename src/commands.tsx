@@ -17,6 +17,7 @@ import { THEMES, isThemeName } from './lib/themes';
 import { TERMINALS, isTermType } from './lib/terminals';
 import { RickRoll } from './components/RickRoll';
 import { openVim } from './components/Vim';
+import { startSu } from './executor';
 import { openLess } from './components/Less';
 import { SlTrain } from './components/eggs/SlTrain';
 import { PacmanInstall } from './components/eggs/Pacman';
@@ -1407,6 +1408,23 @@ export const COMMANDS: Record<string, Command> = {
         </span>
       );
     }
+  },
+
+  su: {
+    desc: 'Switch user (requires the password)',
+    usage: 'su [user]',
+    group: 'Session',
+    hidden: true,
+    man: {
+      description:
+        'Switches to another user after password authentication. The ' +
+        'password prompt is real in the ways that matter: nothing you ' +
+        'type is echoed, stored, or remembered. Authentication, however, ' +
+        'always fails. It is not personal.',
+      examples: ['su matthew', 'su -', '^C to give up with dignity'],
+      seeAlso: ['sudo', 'whoami']
+    },
+    run: () => startSu()
   },
 
   sudo: {

@@ -49,6 +49,7 @@ export function InputLine() {
   const command = useStore((s) => s.command);
   const cursor = useStore((s) => s.cursor);
   const cwd = useStore((s) => s.cwd);
+  const secret = useStore((s) => s.secretInput);
   const inputRef = useRef<HTMLInputElement>(null);
   // Ctrl+R reverse-i-search: query + which match (0 = most recent).
   const [risearch, setRisearch] = useState<{ q: string; idx: number } | null>(null);
@@ -105,6 +106,30 @@ export function InputLine() {
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     const st = useStore.getState();
+
+    // Password mode: typing is invisible; only Enter and Ctrl+C do anything.
+    if (secret) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const v = st.command;
+        st.setCommand('', 0);
+        runCommand(v);
+        return;
+      }
+      if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        st.setSecretInput(false);
+        st.print(<span className="t-dim">Password: ^C</span>);
+        st.setCommand('', 0);
+        shell.lastExit = 130;
+        return;
+      }
+      if (e.key === 'Tab' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.ctrlKey) {
+        e.preventDefault();
+        return;
+      }
+      return; // plain typing lands in the (invisible) input
+    }
 
     // Ctrl+R: enter reverse-i-search, or cycle to an older match.
     if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
@@ -195,6 +220,32 @@ export function InputLine() {
       return;
     }
     setTimeout(syncCursor, 0);
+  }
+
+  // Password prompt: bare label, zero echo — the input is fully transparent
+  // and nothing (not even asterisks) renders as you type.
+  if (secret) {
+    return (
+      <div className="relative cursor-text" onClick={focus}>
+        <div className="pointer-events-none">
+          <span>Password: </span>
+          <span className="mm-cursor"> </span>
+        </div>
+        <input
+          ref={inputRef}
+          type="password"
+          value={command}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          spellCheck={false}
+          autoComplete="off"
+          // eslint-disable-next-line jsx-a11y/no-autofocus
+          autoFocus
+          className="absolute inset-0 h-full w-full bg-transparent text-transparent caret-transparent outline-none"
+          aria-label="password"
+        />
+      </div>
+    );
   }
 
   // Reverse-i-search renders exactly like bash: the prompt is replaced by
