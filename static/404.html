@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>404 — no such file or directory</title>
+    <link rel="icon" type="image/x-icon" href="/terminal.ico" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #145778;
+        font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      .term {
+        background: rgb(30 30 46 / 0.92);
+        color: #cdd6f4;
+        border-radius: 10px;
+        box-shadow: 0 20px 60px rgb(0 0 0 / 0.45);
+        width: min(640px, 100%);
+        overflow: hidden;
+      }
+      .bar {
+        background: rgb(30 30 46);
+        border-bottom: 1px solid rgb(88 91 112 / 0.5);
+        color: #7f849c;
+        text-align: center;
+        font-size: 12px;
+        padding: 8px;
+      }
+      .body {
+        padding: 18px 20px 22px;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      .dim { color: #7f849c; }
+      .green { color: #a6e3a1; }
+      .red { color: #f38ba8; }
+      .yellow { color: #f9e2af; }
+      .blue { color: #89b4fa; font-weight: bold; }
+      .prompt { color: #cba6f7; font-weight: bold; }
+      a.cmd {
+        display: inline-block;
+        margin-top: 14px;
+        color: #a6e3a1;
+        text-decoration: none;
+        border: 1px solid rgb(166 227 161 / 0.4);
+        border-radius: 6px;
+        padding: 6px 14px;
+      }
+      a.cmd:hover { background: rgb(166 227 161 / 0.12); }
+      .cursor {
+        display: inline-block;
+        width: 8px;
+        height: 1.1em;
+        background: #f5e0dc;
+        vertical-align: text-bottom;
+        animation: blink 1s steps(1) infinite;
+      }
+      @keyframes blink { 50% { opacity: 0; } }
+    </style>
+  </head>
+  <body>
+    <div class="term">
+      <div class="bar">visitor@portfolio — 404</div>
+      <div class="body">
+        <div>
+          <span class="prompt">╭─ visitor</span><span class="dim"> @ </span><span class="blue">portfolio</span><span class="dim"> • </span><span class="yellow">~</span>
+        </div>
+        <div><span class="prompt">╰─❯</span> <span class="green">cd</span> <span id="path">/this-page</span></div>
+        <div class="red">bash: cd: <span id="path2">/this-page</span>: No such file or directory</div>
+        <div class="dim">(404 — whatever you were looking for, it isn't here)</div>
+        <a class="cmd" href="/">cd ~ &nbsp;# take me home</a>
+        <div style="margin-top: 14px">
+          <span class="prompt">╰─❯</span> <span class="cursor"></span>
+        </div>
+      </div>
+    </div>
+    <script>
+      var p = location.pathname || '/404';
+      if (p.length > 60) p = p.slice(0, 57) + '…';
+      document.getElementById('path').textContent = p;
+      document.getElementById('path2').textContent = p;
+    </script>
+  </body>
+</html>
