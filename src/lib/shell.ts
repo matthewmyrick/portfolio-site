@@ -15,6 +15,8 @@ const DEFAULT_ENV: [string, string][] = [
 // prints an error is considered failed.
 export const shell = {
   lastExit: 0,
+  // One-shot fortune override (the tour uses this to guarantee its punchline).
+  nextFortune: null as string | null,
   aliases: new Map<string, string>(),
   env: new Map<string, string>(DEFAULT_ENV)
 };

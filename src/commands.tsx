@@ -260,7 +260,7 @@ const FORTUNES = [
   'chmod 777 is not a personality.',
   'If it hurts, do it more often. — someone who never carried a pager',
   'Postmortems: where "human error" goes to be renamed "missing guardrail".',
-  'Latency is zero when you self-host in your living room.',
+  'Latency is zero when you self-host in your apartment.',
   "YAML: it's only whitespace-sensitive when you're in a hurry.",
   "Nine women can't deploy a baby in one month.",
   'The best alert is the one that never fires. The second best fires once.',
@@ -269,6 +269,17 @@ const FORTUNES = [
   'sudo make me a sandwich.',
   'There are two hard problems: cache invalidation, naming, and off-by-one errors.'
 ];
+
+// The tour rigs the deck: a one-shot override so its `fortune | cowsay`
+// always lands the thesis statement. Everyone else gets random.
+function nextFortune(): string {
+  if (shell.nextFortune) {
+    const f = shell.nextFortune;
+    shell.nextFortune = null;
+    return f;
+  }
+  return FORTUNES[Math.floor(Math.random() * FORTUNES.length)];
+}
 
 // Word-wrap a message and put a cow under it, cowsay(1)-style.
 function cowsayText(msg: string): string {
@@ -1403,13 +1414,8 @@ export const COMMANDS: Record<string, Command> = {
       examples: ['fortune', 'fortune | cowsay'],
       seeAlso: ['cowsay']
     },
-    run: () =>
-      print(
-        <div className="whitespace-pre-wrap">
-          {FORTUNES[Math.floor(Math.random() * FORTUNES.length)]}
-        </div>
-      ),
-    text: () => FORTUNES[Math.floor(Math.random() * FORTUNES.length)]
+    run: () => print(<div className="whitespace-pre-wrap">{nextFortune()}</div>),
+    text: () => nextFortune()
   },
 
   cowsay: {

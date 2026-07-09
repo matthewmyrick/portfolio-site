@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useStore } from '../store';
 import { runCommand } from '../executor';
+import { shell } from './shell';
 
 // `tour` — autopilot for visitors who will never type. Commands are typed
 // character by character into the real input (live highlighting and all),
@@ -33,6 +34,15 @@ function steps(originalTheme: string): Step[] {
       ),
       pause: 3000
     },
+    {
+      // The opening act: the cow states the thesis (tour-only rigged draw —
+      // everyone else's fortune stays random).
+      cmd: () => {
+        shell.nextFortune = 'Latency is zero when you self-host in your apartment.';
+        return 'fortune | cowsay';
+      },
+      pause: 3000
+    },
     { cmd: () => 'whoami', pause: 1200 },
     { cmd: () => 'about', pause: 3400 },
     {
@@ -58,7 +68,6 @@ function steps(originalTheme: string): Step[] {
       ),
       pause: 2200
     },
-    { cmd: () => 'fortune | cowsay', pause: 2600 },
     { cmd: () => 'theme dracula', pause: 2000 },
     { cmd: () => 'sl', pause: 800 }, // the train blocks via the job system; we wait it out
     { cmd: () => `theme ${originalTheme}`, pause: 1400 }, // and we put it back. manners.
