@@ -106,10 +106,9 @@ const education = file(`
 Milwaukee, WI
 
 B.S. in Business Administration
-Majors:
+Degrees:
 - Information Systems
 - Finance
-Minor:
 - Computer Science
 `);
 
